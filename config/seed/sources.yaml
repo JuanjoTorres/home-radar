@@ -1,0 +1,52 @@
+# Sources polled by the worker (ADR-0005). Intervals in minutes. Priority sources also get a quick scan of the first page.
+sources:
+  - key: solvia
+    name: Solvia (Intrum)
+    kind: Servicer
+    sellerType: Servicer
+    adapter: solvia
+    pollMinutes: 360
+    priorityPollMinutes: 15
+    priority: true
+    configuration:
+      listUrl: https://www.solvia.es/es/comprar/viviendas/balears-illes
+      pageSize: 20
+      maxPrice: 5000000
+      fetchDetails: true
+  - key: aliseda
+    name: Aliseda Inmobiliaria
+    kind: Servicer
+    sellerType: Servicer
+    adapter: aliseda
+    pollMinutes: 720
+    configuration:
+      listUrl: https://www.alisedainmobiliaria.com/comprar-viviendas/islas-baleares
+  - key: diglo
+    name: Diglo (Santander)
+    kind: Bank
+    sellerType: Bank
+    adapter: diglo
+    pollMinutes: 720
+    configuration:
+      listUrl: https://digloservicer.com/venta-activos/cualquiera/islas-baleares
+      fetchDetails: true
+  - key: inmovilla-mir
+    name: Inmobiliaria Mir (Inmovilla)
+    kind: Agency
+    sellerType: Agency
+    adapter: inmovilla
+    pollMinutes: 240
+    priorityPollMinutes: 15
+    priority: true
+    configuration:
+      baseUrl: https://www.inmobiliariamir.es/
+      pageSize: 48
+  - key: inmovilla-incasa
+    name: Incasa Properties (Inmovilla)
+    kind: Agency
+    sellerType: Agency
+    adapter: inmovilla
+    pollMinutes: 240
+    configuration:
+      baseUrl: https://www.incasaproperties.com/
+      pageSize: 48

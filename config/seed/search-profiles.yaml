@@ -1,0 +1,12 @@
+# Saved searches that generate alerts. Copy to search-profiles.local.yaml to keep personal criteria out of git.
+profiles:
+  - key: default
+    revision: 1
+    name: Mallorca hasta 350k
+    priority: true
+    channels: [Telegram]
+    filter:
+      priceMax: 350000
+      propertyTypes: [Flat, House, Townhouse, Penthouse, Studio, Finca]
+      excludePossession: [NoPossession, Occupied]
+      includeNewBuild: true

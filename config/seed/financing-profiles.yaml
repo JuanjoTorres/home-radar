@@ -1,0 +1,21 @@
+# Example financing profile. Real figures belong in financing-profiles.local.yaml (git-ignored).
+profiles:
+  - key: example
+    revision: 1
+    name: Ejemplo
+    savings: 60000
+    netMonthlyIncome: 3000
+    existingMonthlyDebt: 0
+    maxDebtToIncomeRatio: 0.35
+    isDefault: true
+    mortgage:
+      type: Fixed
+      maxLoanToValue: 0.8
+      nominalRatePercent: 2.9
+      termMonths: 360
+    buyer:
+      age: 34
+      firstHome: true
+      primaryResidence: true
+      residentInBalearics: true
+      yearsResidentInBalearics: 5
