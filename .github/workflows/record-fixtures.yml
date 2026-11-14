@@ -1,0 +1,32 @@
+name: record-fixtures
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Source key to record (empty = all)
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Record fixtures (robots.txt respected, 4 s between requests)
+        run: python build/fixtures/record_fixtures.py tests/HomeRadar.Sources.ContractTests/Fixtures/manifest.yaml tests/HomeRadar.Sources.ContractTests/Fixtures "${{ inputs.source }}"
+        continue-on-error: true
+      - name: Commit fixtures
+        run: |
+          git config user.name "homeradar-fixtures[bot]"
+          git config user.email "fixtures@homeradar.invalid"
+          git add tests/HomeRadar.Sources.ContractTests/Fixtures
+          git diff --cached --quiet && echo "no changes" || git commit -m "test(fixtures): record source fixtures $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push

@@ -1,0 +1,41 @@
+# Pages recorded by .github/workflows/record-fixtures.yml. Keep this list minimal and polite.
+sources:
+  - key: solvia
+    pages:
+      - name: list-balears
+        url: https://www.solvia.es/es/comprar/viviendas/balears-illes
+        followFirst: { name: detail, pattern: "/es/propiedades/comprar/[a-z0-9-]+-[0-9]+-[0-9]+" }
+      - name: list-balears-page2
+        url: https://www.solvia.es/es/comprar/viviendas/balears-illes?page=2
+      - name: list-palma
+        url: https://www.solvia.es/es/comprar/viviendas/balears-illes/palma-de-mallorca
+  - key: aliseda
+    pages:
+      - name: list-balears
+        url: https://www.alisedainmobiliaria.com/comprar-viviendas/islas-baleares?page=0&sort_by=field_prom_prec&sort_order=ASC
+        followFirst: { name: detail, pattern: "/inmueble/[A-Za-z0-9]+" }
+      - name: list-balears-page1
+        url: https://www.alisedainmobiliaria.com/comprar-viviendas/islas-baleares?page=1&sort_by=field_prom_prec&sort_order=ASC
+  - key: diglo
+    pages:
+      - name: list-balears
+        url: https://digloservicer.com/venta-activos/cualquiera/islas-baleares
+        followFirst: { name: detail, pattern: "/venta-[a-z]+/islas-baleares/[a-z0-9-]+/[A-Za-z0-9]+" }
+      - name: list-balears-page1
+        url: https://digloservicer.com/venta-activos/cualquiera/islas-baleares?page=1
+  - key: inmovilla-native
+    pages:
+      - name: mir-home
+        url: https://www.inmobiliariamir.es/
+        followFirst: { name: mir-detail, pattern: "/ficha/[a-z0-9-]+/[a-z0-9-]+/[a-z0-9-]+/[0-9]+/[0-9]+/es/" }
+      - name: incasa-home
+        url: https://www.incasaproperties.com/
+        followFirst: { name: incasa-detail, pattern: "/ficha/[a-z0-9-]+/[a-z0-9-]+/[a-z0-9-]+/[0-9]+/[0-9]+/es/" }
+  - key: inmovilla-wordpress
+    pages:
+      - name: fiol-home
+        url: https://fincasfiol.com/
+        followFirst: { name: fiol-detail, pattern: "/propiedad/[a-z0-9-]+-[0-9]{8}/" }
+      - name: lighthouse-home
+        url: https://lighthouse-living.com/
+        followFirst: { name: lighthouse-detail, pattern: "/propiedad/[a-z0-9-]+-[0-9]{8}/" }
