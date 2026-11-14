@@ -1,0 +1,6 @@
+{
+  "app": "dotnet run --project HomeRadar.Cdk.csproj",
+  "context": {
+    "@aws-cdk/core:newStyleStackSynthesis": true
+  }
+}

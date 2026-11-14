@@ -50,7 +50,7 @@
     <PackageVersion Include="AWSSDK.S3" Version="4.1.0" />
     <PackageVersion Include="AWSSDK.SimpleEmailV2" Version="4.1.0" />
     <PackageVersion Include="Amazon.CDK.Lib" Version="2.277.0" />
-    <PackageVersion Include="Constructs" Version="10.4.2" />
+    <PackageVersion Include="Constructs" Version="10.5.0" />
   </ItemGroup>
   <ItemGroup Label="Tests">
     <PackageVersion Include="xunit.v3" Version="4.0.3" />

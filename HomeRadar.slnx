@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/infra/" />
+  <Folder Name="/infra/cdk/">
+    <Project Path="infra/cdk/HomeRadar.Cdk.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/HomeRadar.Api/HomeRadar.Api.csproj" />
     <Project Path="src/HomeRadar.Application/HomeRadar.Application.csproj" />
