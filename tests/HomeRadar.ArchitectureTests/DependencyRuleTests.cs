@@ -9,7 +9,7 @@ public sealed class DependencyRuleTests
 {
     private static readonly Architecture Architecture = new ArchLoader()
         .LoadAssemblies(
-            typeof(Domain.Common.Entity<>).Assembly,
+            typeof(Domain.Common.Entity).Assembly,
             typeof(Application.Common.ApplicationAssembly).Assembly,
             typeof(Infrastructure.Persistence.PersistenceAssembly).Assembly,
             typeof(Sources.Common.SourcesAssembly).Assembly,

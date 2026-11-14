@@ -6,7 +6,13 @@ namespace HomeRadar.Application.Notifications;
 
 public static class ListingMessageFormatter
 {
-    private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-ES");
+    private static readonly NumberFormatInfo Spanish = new()
+    {
+        NumberGroupSeparator = ".",
+        NumberDecimalSeparator = ",",
+        NegativeSign = "-",
+        PositiveSign = "+",
+    };
 
     public static string NewListing(Listing listing, string sourceName, IReadOnlyList<string> matchedProfiles)
     {

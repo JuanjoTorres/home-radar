@@ -45,11 +45,17 @@ public sealed class Listing : Entity
 
     public string Title { get; private set; } = string.Empty;
 
-    public Money? Price { get; private set; }
+    public decimal? PriceAmount { get; private set; }
 
-    public Area? BuiltArea { get; private set; }
+    public decimal? BuiltSquareMetres { get; private set; }
 
-    public Area? UsableArea { get; private set; }
+    public decimal? UsableSquareMetres { get; private set; }
+
+    public Money? Price => PriceAmount is { } amount ? new Money(amount) : null;
+
+    public Area? BuiltArea => Area.FromNullable(BuiltSquareMetres);
+
+    public Area? UsableArea => Area.FromNullable(UsableSquareMetres);
 
     public int? Rooms { get; private set; }
 
@@ -97,7 +103,9 @@ public sealed class Listing : Entity
 
     public ContentHash ContentHash { get; private set; }
 
-    public Money? InitialPrice { get; private set; }
+    public decimal? InitialPriceAmount { get; private set; }
+
+    public Money? InitialPrice => InitialPriceAmount is { } amount ? new Money(amount) : null;
 
     public int PriceDropCount { get; private set; }
 
@@ -115,7 +123,7 @@ public sealed class Listing : Entity
     {
         var listing = new Listing(sourceId, sourceKey, sellerType, observation, now)
         {
-            InitialPrice = observation.Price,
+            InitialPriceAmount = observation.Price?.Amount,
         };
         listing.Record(ListingEventType.Created, now, new CreatedPayload(observation.Price, observation.Municipality, observation.PropertyType));
         return listing;
@@ -192,7 +200,7 @@ public sealed class Listing : Entity
             PriceDropCount++;
         }
 
-        InitialPrice ??= observation.Price;
+        InitialPriceAmount ??= observation.Price?.Amount;
         LastPriceChangeAt = now;
         Record(ListingEventType.PriceChanged, now, new PriceChangedPayload(Price, observation.Price, delta, percent));
     }
@@ -298,9 +306,9 @@ public sealed class Listing : Entity
     {
         Url = observation.Url;
         Title = observation.Title;
-        Price = observation.Price;
-        BuiltArea = observation.BuiltArea;
-        UsableArea = observation.UsableArea;
+        PriceAmount = observation.Price?.Amount;
+        BuiltSquareMetres = observation.BuiltArea?.SquareMetres;
+        UsableSquareMetres = observation.UsableArea?.SquareMetres;
         Rooms = observation.Rooms;
         Bathrooms = observation.Bathrooms;
         PropertyType = observation.PropertyType;

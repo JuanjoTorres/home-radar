@@ -28,32 +28,32 @@ public static class ListingFilterSpecification
 
         if (filter.PriceMin is { } priceMin)
         {
-            predicate = predicate.And(l => l.Price != null && l.Price.Value.Amount >= priceMin);
+            predicate = predicate.And(l => l.PriceAmount != null && l.PriceAmount >= priceMin);
         }
 
         if (filter.PriceMax is { } priceMax)
         {
-            predicate = predicate.And(l => l.Price != null && l.Price.Value.Amount <= priceMax);
+            predicate = predicate.And(l => l.PriceAmount != null && l.PriceAmount <= priceMax);
         }
 
         if (filter.PricePerM2Min is { } ppm2Min)
         {
-            predicate = predicate.And(l => l.Price != null && l.BuiltArea != null && l.BuiltArea.Value.SquareMetres > 0 && l.Price.Value.Amount / l.BuiltArea.Value.SquareMetres >= ppm2Min);
+            predicate = predicate.And(l => l.PriceAmount != null && l.BuiltSquareMetres != null && l.BuiltSquareMetres > 0 && l.PriceAmount / l.BuiltSquareMetres >= ppm2Min);
         }
 
         if (filter.PricePerM2Max is { } ppm2Max)
         {
-            predicate = predicate.And(l => l.Price != null && l.BuiltArea != null && l.BuiltArea.Value.SquareMetres > 0 && l.Price.Value.Amount / l.BuiltArea.Value.SquareMetres <= ppm2Max);
+            predicate = predicate.And(l => l.PriceAmount != null && l.BuiltSquareMetres != null && l.BuiltSquareMetres > 0 && l.PriceAmount / l.BuiltSquareMetres <= ppm2Max);
         }
 
         if (filter.BuiltM2Min is { } m2Min)
         {
-            predicate = predicate.And(l => l.BuiltArea != null && l.BuiltArea.Value.SquareMetres >= m2Min);
+            predicate = predicate.And(l => l.BuiltSquareMetres != null && l.BuiltSquareMetres >= m2Min);
         }
 
         if (filter.BuiltM2Max is { } m2Max)
         {
-            predicate = predicate.And(l => l.BuiltArea != null && l.BuiltArea.Value.SquareMetres <= m2Max);
+            predicate = predicate.And(l => l.BuiltSquareMetres != null && l.BuiltSquareMetres <= m2Max);
         }
 
         if (filter.RoomsMin is { } roomsMin)
@@ -145,8 +145,8 @@ public static class ListingFilterSpecification
 
         if (filter.CumulativeDropPercentMin is { } cumulativeMin)
         {
-            predicate = predicate.And(l => l.InitialPrice != null && l.Price != null && l.InitialPrice.Value.Amount > 0
-                && (l.InitialPrice.Value.Amount - l.Price.Value.Amount) / l.InitialPrice.Value.Amount * 100m >= cumulativeMin);
+            predicate = predicate.And(l => l.InitialPriceAmount != null && l.PriceAmount != null && l.InitialPriceAmount > 0
+                && (l.InitialPriceAmount - l.PriceAmount) / l.InitialPriceAmount * 100m >= cumulativeMin);
         }
 
         if (filter.NewWithinHours is { } hours)

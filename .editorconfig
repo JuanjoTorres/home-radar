@@ -40,7 +40,13 @@ dotnet_diagnostic.CA1034.severity = none
 dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1819.severity = none
 
-# Naming: private static readonly fields PascalCase, other private fields _camelCase
+# Naming: constants and private static readonly fields PascalCase, other private fields _camelCase
+dotnet_naming_rule.constants_pascal.symbols = constants
+dotnet_naming_rule.constants_pascal.style = pascal
+dotnet_naming_rule.constants_pascal.severity = error
+dotnet_naming_symbols.constants.applicable_kinds = field
+dotnet_naming_symbols.constants.applicable_accessibilities = *
+dotnet_naming_symbols.constants.required_modifiers = const
 dotnet_naming_rule.private_static_readonly_pascal.symbols = private_static_readonly
 dotnet_naming_rule.private_static_readonly_pascal.style = pascal
 dotnet_naming_rule.private_static_readonly_pascal.severity = error
@@ -55,3 +61,11 @@ dotnet_naming_symbols.private_fields.applicable_kinds = field
 dotnet_naming_symbols.private_fields.applicable_accessibilities = private
 dotnet_naming_style.underscore_camel.capitalization = camel_case
 dotnet_naming_style.underscore_camel.required_prefix = _
+
+# Generated EF Core migrations are not hand-written code
+[src/HomeRadar.Infrastructure/Persistence/Migrations/**.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
+dotnet_diagnostic.IDE0005.severity = none
+dotnet_diagnostic.IDE0161.severity = none
+csharp_style_namespace_declarations = block_scoped:silent
