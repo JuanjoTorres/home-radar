@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.swp
+.env
+config/seed/*.local.yaml
+TestResults/
+node_modules/

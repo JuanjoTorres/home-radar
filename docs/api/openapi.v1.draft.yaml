@@ -1,0 +1,719 @@
+openapi: 3.1.0
+info:
+  title: HomeRadar Mallorca API
+  version: 1.0.0-draft
+  summary: Headless API that watches low-competition property sources in Mallorca, records every listing change and tells the owner what they can afford.
+  description: |
+    Phase-0 draft. The real contract is generated from code at build time into `docs/api/openapi.v1.json`;
+    this file fixes naming, envelopes, error types and the shape of the main resources before any code exists.
+
+    Conventions: kebab-case paths, plural nouns, camelCase JSON, ISO 8601 UTC timestamps, money as `{amount, currency}`,
+    cursor pagination (`items`, `nextCursor`, `hasMore`), RFC 9457 problem details for every error.
+servers:
+  - url: https://{host}/v1
+    variables:
+      host:
+        default: homeradar.example
+security:
+  - ApiKey: []
+tags:
+  - name: Listings
+    description: Normalised listings from every source, their current state and full change history.
+  - name: Analysis
+    description: "Deterministic financial analysis: acquisition cost, affordability, maximum price, renovation and negotiation margin."
+  - name: Financing profiles
+  - name: Search profiles
+    description: Saved filters that generate alerts.
+  - name: Watchlist
+  - name: Business config
+    description: Versioned tax rules, cost tables and thresholds with validity dates.
+  - name: Sources
+  - name: Webhooks
+paths:
+  /listings:
+    get:
+      operationId: listListings
+      tags: [Listings]
+      summary: List listings with simple query-string filters.
+      description: |
+        Simple search for quick checks. Use `POST /listings/search` for geographic, affordability and history-based filters.
+        Results are ordered by `firstSeenAt` descending unless `sort` is given.
+      parameters:
+        - { name: municipality, in: query, schema: { type: string }, example: Inca }
+        - { name: priceMin, in: query, schema: { type: number, minimum: 0 }, description: EUR }
+        - { name: priceMax, in: query, schema: { type: number, minimum: 0 }, description: EUR }
+        - { name: sourceKey, in: query, schema: { type: string }, example: solvia }
+        - { name: newWithinHours, in: query, schema: { type: integer, minimum: 1, maximum: 720 } }
+        - { name: sort, in: query, schema: { $ref: '#/components/schemas/ListingSort' } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        '200':
+          description: Page of listing summaries.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingSummaryPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /listings/search:
+    post:
+      operationId: searchListings
+      tags: [Listings]
+      summary: Search listings with full filters, including "only what I can afford".
+      description: |
+        When `financingProfileId` or `budget` is given, each listing is filtered by its deterministic analysis:
+        total acquisition cost (price + ITP/IVA+AJD + notary, registry, agency, valuation + estimated renovation + contingency)
+        must fit the cash available and the monthly payment must respect the debt-to-income ratio.
+        Geographic filters accept a municipality list, a GeoJSON polygon or a point with a radius in metres.
+        History filters use the append-only change log (days on market, number and size of price drops).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingSearchRequest' }
+      responses:
+        '200':
+          description: Page of listing summaries with optional affordability verdict.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingSummaryPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /listings/{listingId}:
+    get:
+      operationId: getListing
+      tags: [Listings]
+      summary: Get a listing with its property and sibling listings of the same home.
+      parameters: [ { $ref: '#/components/parameters/ListingId' } ]
+      responses:
+        '200':
+          description: Listing detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /listings/{listingId}/history:
+    get:
+      operationId: getListingHistory
+      tags: [Listings]
+      summary: Timeline of every detected change (price, text, photos, features, status).
+      parameters:
+        - { $ref: '#/components/parameters/ListingId' }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+      responses:
+        '200':
+          description: Events, newest first.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingEventPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /listings/{listingId}/analysis:
+    get:
+      operationId: getListingAnalysis
+      tags: [Analysis]
+      summary: Full deterministic analysis of a listing for a financing profile.
+      description: |
+        Reproducible: the response carries the `businessConfigVersionId` and the financing profile snapshot used.
+        Monthly payment uses the French amortisation formula `P = L · i / (1 − (1 + i)^−n)` with `i` the monthly rate.
+        Variable and mixed mortgages are simulated under the configured Euríbor scenarios.
+        Verdict: `Affordable` when cash at signing ≤ savings and payment ≤ ratio; `Borderline` within the configured tolerance; otherwise `NotAffordable`, always with concrete reasons.
+      parameters:
+        - { $ref: '#/components/parameters/ListingId' }
+        - { name: financingProfileId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: cadastralReferenceValue, in: query, schema: { type: number, minimum: 0 }, description: Optional manual Catastro reference value in EUR (not available through a public API). }
+      responses:
+        '200':
+          description: Analysis.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingAnalysis' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /listings/{listingId}/renovation-override:
+    put:
+      operationId: setRenovationOverride
+      tags: [Analysis]
+      summary: Manually fix the renovation level or specific line items after seeing photos or visiting.
+      parameters:
+        - { $ref: '#/components/parameters/ListingId' }
+        - { $ref: '#/components/parameters/IfMatch' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RenovationOverride' }
+      responses:
+        '200':
+          description: Override stored; analysis will use it over the rule-based estimate.
+          headers: { ETag: { schema: { type: string } } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RenovationOverride' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+  /analysis/simulations:
+    post:
+      operationId: simulatePurchase
+      tags: [Analysis]
+      summary: Free simulation without a listing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PurchaseSimulationRequest' }
+      responses:
+        '200':
+          description: Analysis for the given price and assumptions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListingAnalysis' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+  /affordability/maximum-price:
+    post:
+      operationId: calculateMaximumAffordablePrice
+      tags: [Analysis]
+      summary: Highest purchase price the profile can afford, taxes and renovation included.
+      description: |
+        Inverse calculation by bisection over the acquisition-cost function. Property test: feeding the result back into
+        `simulatePurchase` must return `Affordable` and exactly hit the binding constraint (cash or ratio).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MaximumPriceRequest' }
+      responses:
+        '200':
+          description: Maximum price and the binding constraint.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MaximumPriceResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /renovation/estimates:
+    post:
+      operationId: estimateRenovation
+      tags: [Analysis]
+      summary: Rule-based renovation estimate for a listing or for manual parameters.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RenovationEstimateRequest' }
+      responses:
+        '200':
+          description: Min / likely / max with line items and confidence.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RenovationEstimate' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /financing-profiles:
+    get:
+      operationId: listFinancingProfiles
+      tags: [Financing profiles]
+      summary: List financing profiles.
+      responses:
+        '200': { description: Profiles., content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/FinancingProfile' } } } } }
+    post:
+      operationId: createFinancingProfile
+      tags: [Financing profiles]
+      summary: Create a financing profile.
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FinancingProfileInput' } } } }
+      responses:
+        '201': { description: Created., headers: { ETag: { schema: { type: string } } }, content: { application/json: { schema: { $ref: '#/components/schemas/FinancingProfile' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /financing-profiles/{financingProfileId}:
+    parameters: [ { name: financingProfileId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    get:
+      operationId: getFinancingProfile
+      tags: [Financing profiles]
+      summary: Get a financing profile.
+      responses:
+        '200': { description: Profile., headers: { ETag: { schema: { type: string } } }, content: { application/json: { schema: { $ref: '#/components/schemas/FinancingProfile' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateFinancingProfile
+      tags: [Financing profiles]
+      summary: Replace a financing profile.
+      parameters: [ { $ref: '#/components/parameters/IfMatch' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FinancingProfileInput' } } } }
+      responses:
+        '200': { description: Updated., content: { application/json: { schema: { $ref: '#/components/schemas/FinancingProfile' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+    delete:
+      operationId: deleteFinancingProfile
+      tags: [Financing profiles]
+      summary: Delete a financing profile.
+      responses:
+        '204': { description: Deleted. }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /search-profiles:
+    get: { operationId: listSearchProfiles, tags: [Search profiles], summary: List saved searches., responses: { '200': { description: Saved searches., content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SearchProfile' } } } } } } }
+    post:
+      operationId: createSearchProfile
+      tags: [Search profiles]
+      summary: Create a saved search with alert channels.
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SearchProfileInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/SearchProfile' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /search-profiles/{searchProfileId}:
+    parameters: [ { name: searchProfileId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    get: { operationId: getSearchProfile, tags: [Search profiles], summary: Get a saved search., responses: { '200': { description: Saved search., content: { application/json: { schema: { $ref: '#/components/schemas/SearchProfile' } } } }, '404': { $ref: '#/components/responses/NotFound' } } }
+    put: { operationId: updateSearchProfile, tags: [Search profiles], summary: Replace a saved search., parameters: [ { $ref: '#/components/parameters/IfMatch' } ], requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SearchProfileInput' } } } }, responses: { '200': { description: Updated., content: { application/json: { schema: { $ref: '#/components/schemas/SearchProfile' } } } }, '412': { $ref: '#/components/responses/PreconditionFailed' } } }
+    delete: { operationId: deleteSearchProfile, tags: [Search profiles], summary: Delete a saved search., responses: { '204': { description: Deleted. } } }
+  /watchlist:
+    get: { operationId: listWatchlist, tags: [Watchlist], summary: List watched listings., responses: { '200': { description: Watchlist., content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/WatchlistItem' } } } } } } }
+    post:
+      operationId: addToWatchlist
+      tags: [Watchlist]
+      summary: Start following a listing; every change will be notified with a diff.
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WatchlistItemInput' } } } }
+      responses:
+        '201': { description: Added., content: { application/json: { schema: { $ref: '#/components/schemas/WatchlistItem' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /watchlist/{watchlistItemId}:
+    parameters: [ { name: watchlistItemId, in: path, required: true, schema: { type: string, format: uuid } } ]
+    patch: { operationId: updateWatchlistItem, tags: [Watchlist], summary: "Update notes or status (Seen, Visited, OfferMade, Discarded).", parameters: [ { $ref: '#/components/parameters/IfMatch' } ], requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WatchlistItemPatch' } } } }, responses: { '200': { description: Updated., content: { application/json: { schema: { $ref: '#/components/schemas/WatchlistItem' } } } }, '412': { $ref: '#/components/responses/PreconditionFailed' } } }
+    delete: { operationId: removeFromWatchlist, tags: [Watchlist], summary: Stop following., responses: { '204': { description: Removed. } } }
+  /business-config:
+    get: { operationId: getCurrentBusinessConfig, tags: [Business config], summary: Business configuration in force today., responses: { '200': { description: Config., content: { application/json: { schema: { $ref: '#/components/schemas/BusinessConfigVersion' } } } } } }
+  /business-config/versions:
+    get: { operationId: listBusinessConfigVersions, tags: [Business config], summary: All versions with validity dates., responses: { '200': { description: Versions., content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/BusinessConfigVersion' } } } } } } }
+  /sources:
+    get: { operationId: listSources, tags: [Sources], summary: Registered sources and their health., responses: { '200': { description: Sources., content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Source' } } } } } } }
+  /sources/{sourceId}/health:
+    get:
+      operationId: getSourceHealth
+      tags: [Sources]
+      summary: Last runs, counters and errors of a source.
+      parameters: [ { name: sourceId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses:
+        '200': { description: Health., content: { application/json: { schema: { $ref: '#/components/schemas/SourceHealth' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /webhook-subscriptions:
+    post:
+      operationId: createWebhookSubscription
+      tags: [Webhooks]
+      summary: Subscribe an HTTPS endpoint to events.
+      parameters: [ { $ref: '#/components/parameters/IdempotencyKey' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WebhookSubscriptionInput' } } } }
+      responses:
+        '201': { description: Created., content: { application/json: { schema: { $ref: '#/components/schemas/WebhookSubscription' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+webhooks:
+  listing.created:
+    post:
+      summary: A listing appeared in a source for the first time.
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/WebhookEnvelope' } } } }
+      responses: { '200': { description: Acknowledged. } }
+  listing.priceChanged:
+    post:
+      summary: Listing price changed; payload carries before, after, delta in EUR and %.
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/WebhookEnvelope' } } } }
+      responses: { '200': { description: Acknowledged. } }
+  listing.statusChanged:
+    post:
+      summary: Listing moved between Active, Reserved, Sold, Withdrawn, Relisted.
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/WebhookEnvelope' } } } }
+      responses: { '200': { description: Acknowledged. } }
+  watchlist.changed:
+    post:
+      summary: Any change on a watched listing, with a summarised diff.
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/WebhookEnvelope' } } } }
+      responses: { '200': { description: Acknowledged. } }
+components:
+  securitySchemes:
+    ApiKey: { type: apiKey, in: header, name: X-Api-Key }
+  parameters:
+    ListingId: { name: listingId, in: path, required: true, schema: { type: string, format: uuid } }
+    IfMatch: { name: If-Match, in: header, required: true, schema: { type: string }, description: ETag of the version being modified; 412 on mismatch. }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: false, schema: { type: string, maxLength: 128 }, description: Replays the stored response for 24 h when the same key and body are sent again. }
+  responses:
+    BadRequest: { description: Validation error., content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+    Unauthorized: { description: Missing or invalid API key., content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+    NotFound: { description: Resource not found., content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+    Conflict: { description: Duplicate or idempotency-key conflict., content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+    PreconditionFailed: { description: ETag mismatch., content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+    UnprocessableEntity: { description: Business rule violation (e.g. profile incomplete for the requested rule)., content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+    TooManyRequests: { description: Rate limit exceeded., headers: { Retry-After: { schema: { type: integer } }, RateLimit-Limit: { schema: { type: integer } }, RateLimit-Remaining: { schema: { type: integer } } }, content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+    InternalError: { description: Unexpected error., content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } } }
+  schemas:
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string, format: uri, description: Stable error type, e.g. https://homeradar.example/problems/insufficient-cash }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors: { type: object, additionalProperties: { type: array, items: { type: string } } }
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: { type: number, description: Decimal amount with 2 fraction digits., example: 245000.00 }
+        currency: { type: string, enum: [EUR] }
+    Area:
+      type: object
+      properties:
+        builtM2: { type: number, minimum: 0, description: Built area in m². }
+        usableM2: { type: [number, 'null'], minimum: 0, description: Usable area in m² when published. }
+        cadastralBuiltM2: { type: [number, 'null'], description: Built area according to Catastro, when matched. }
+    ListingStatus: { type: string, enum: [Active, Reserved, Sold, Withdrawn, Relisted] }
+    PossessionStatus: { type: string, enum: [Unknown, Vacant, Occupied, RentedUntil, NoPossession], description: Occupancy as published by the source (critical for bank-owned stock). }
+    PropertyType: { type: string, enum: [Flat, House, Townhouse, Finca, Penthouse, Studio, Other] }
+    RenovationLevel: { type: string, enum: [MoveIn, Light, Medium, Full], description: MoveIn = ready; Light = paint and floors; Medium = kitchen and bathrooms; Full = integral. }
+    AffordabilityVerdict: { type: string, enum: [Affordable, Borderline, NotAffordable] }
+    SellerType: { type: string, enum: [Servicer, Bank, Agency, Auction, Private] }
+    ListingSort: { type: string, enum: [score, priceAsc, priceDesc, pricePerM2, firstSeenDesc, priceDropDesc] }
+    ListingSummary:
+      type: object
+      required: [id, sourceKey, externalId, url, price, status, firstSeenAt, lastSeenAt]
+      properties:
+        id: { type: string, format: uuid }
+        propertyId: { type: [string, 'null'], format: uuid }
+        sourceKey: { type: string, example: solvia }
+        sellerType: { $ref: '#/components/schemas/SellerType' }
+        externalId: { type: string }
+        url: { type: string, format: uri }
+        title: { type: string }
+        price: { $ref: '#/components/schemas/Money' }
+        pricePerM2: { type: [number, 'null'], description: EUR per built m². }
+        area: { $ref: '#/components/schemas/Area' }
+        rooms: { type: [integer, 'null'] }
+        bathrooms: { type: [integer, 'null'] }
+        propertyType: { $ref: '#/components/schemas/PropertyType' }
+        municipality: { type: string, example: Inca }
+        location: { type: [object, 'null'], description: GeoJSON Point (WGS84) when known. }
+        status: { $ref: '#/components/schemas/ListingStatus' }
+        possession: { $ref: '#/components/schemas/PossessionStatus' }
+        firstSeenAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        daysOnMarket: { type: integer, minimum: 0 }
+        priceDrops: { type: integer, minimum: 0 }
+        cumulativeDropPercent: { type: number, description: Total drop since first seen, in %. }
+        score: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+        redFlags: { type: array, items: { type: string }, example: [NoHabitabilityCertificate, RusticLand] }
+        affordability: { $ref: '#/components/schemas/AffordabilityVerdict' }
+        mainPhotoUrl: { type: [string, 'null'], format: uri }
+    ListingSummaryPage:
+      type: object
+      required: [items, hasMore]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ListingSummary' } }
+        nextCursor: { type: [string, 'null'] }
+        hasMore: { type: boolean }
+    ListingDetail:
+      allOf:
+        - $ref: '#/components/schemas/ListingSummary'
+        - type: object
+          properties:
+            description: { type: string }
+            features: { type: object, additionalProperties: true, description: Normalised feature map (elevator, terrace, parking, yearBuilt...). }
+            photos: { type: array, items: { type: object, properties: { url: { type: string, format: uri }, position: { type: integer }, perceptualHash: { type: string } } } }
+            cadastralReference: { type: [string, 'null'], pattern: '^[0-9A-Z]{20}$' }
+            property: { type: [object, 'null'], description: The physical home grouping this and sibling listings. }
+            siblingListings: { type: array, items: { $ref: '#/components/schemas/ListingSummary' } }
+            renovationOverride: { oneOf: [ { $ref: '#/components/schemas/RenovationOverride' }, { type: 'null' } ] }
+    ListingSearchRequest:
+      type: object
+      properties:
+        price: { type: object, properties: { min: { type: number }, max: { type: number } } }
+        pricePerM2: { type: object, properties: { min: { type: number }, max: { type: number } } }
+        builtM2: { type: object, properties: { min: { type: number }, max: { type: number } } }
+        usableM2: { type: object, properties: { min: { type: number }, max: { type: number } } }
+        rooms: { type: object, properties: { min: { type: integer }, max: { type: integer } } }
+        bathrooms: { type: object, properties: { min: { type: integer } } }
+        propertyTypes: { type: array, items: { $ref: '#/components/schemas/PropertyType' } }
+        municipalities: { type: array, items: { type: string } }
+        polygon: { type: [object, 'null'], description: GeoJSON Polygon (WGS84). }
+        radius: { type: [object, 'null'], properties: { lat: { type: number }, lon: { type: number }, metres: { type: integer, minimum: 50, maximum: 50000 } } }
+        sellerTypes: { type: array, items: { $ref: '#/components/schemas/SellerType' } }
+        sourceKeys: { type: array, items: { type: string } }
+        agencyIds: { type: array, items: { type: string, format: uuid } }
+        renovationLevels: { type: array, items: { $ref: '#/components/schemas/RenovationLevel' } }
+        elevator: { type: [boolean, 'null'] }
+        terrace: { type: [boolean, 'null'] }
+        parking: { type: [boolean, 'null'] }
+        yearBuilt: { type: object, properties: { min: { type: integer }, max: { type: integer } } }
+        daysOnMarket: { type: object, properties: { min: { type: integer }, max: { type: integer } } }
+        priceDrops: { type: object, properties: { min: { type: integer } } }
+        cumulativeDropPercent: { type: object, properties: { min: { type: number } } }
+        newWithinHours: { type: [integer, 'null'], minimum: 1 }
+        minScore: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+        excludeRedFlags: { type: array, items: { type: string } }
+        statuses: { type: array, items: { $ref: '#/components/schemas/ListingStatus' }, default: [Active] }
+        financingProfileId: { type: [string, 'null'], format: uuid, description: Return only listings the profile can afford. }
+        budget: { oneOf: [ { $ref: '#/components/schemas/Money' }, { type: 'null' } ], description: Simpler alternative to a profile - maximum total acquisition cost. }
+        sort: { $ref: '#/components/schemas/ListingSort' }
+        cursor: { type: [string, 'null'] }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      example:
+        price: { max: 260000 }
+        municipalities: [Inca, Binissalem, Lloseta]
+        rooms: { min: 2 }
+        excludeRedFlags: [NoPossession, RusticLand]
+        financingProfileId: 7a1c1b0e-4f0b-4c1a-9f0a-2d1e6c7b8a90
+        sort: score
+    ListingEvent:
+      type: object
+      required: [id, type, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [Created, PriceChanged, DescriptionChanged, PhotoAdded, PhotoRemoved, PhotoReplaced, FeaturesChanged, StatusChanged, Relisted, CrossListed, AgencyChanged] }
+        occurredAt: { type: string, format: date-time }
+        snapshotId: { type: string, format: uuid }
+        payload: { type: object, additionalProperties: true, description: Event-specific data; PriceChanged carries before, after, deltaAmount, deltaPercent; DescriptionChanged carries a unified diff. }
+    ListingEventPage:
+      type: object
+      required: [items, hasMore]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ListingEvent' } }
+        nextCursor: { type: [string, 'null'] }
+        hasMore: { type: boolean }
+    FinancingProfileInput:
+      type: object
+      required: [name, savings, netMonthlyIncome, mortgage]
+      properties:
+        name: { type: string }
+        savings: { $ref: '#/components/schemas/Money' }
+        netMonthlyIncome: { $ref: '#/components/schemas/Money' }
+        existingMonthlyDebt: { $ref: '#/components/schemas/Money' }
+        maxDebtToIncomeRatio: { type: number, minimum: 0.1, maximum: 0.6, default: 0.35 }
+        mortgage:
+          type: object
+          required: [type, maxLoanToValue, termMonths]
+          properties:
+            type: { type: string, enum: [Fixed, Variable, Mixed] }
+            maxLoanToValue: { type: number, minimum: 0.5, maximum: 1.0, description: 0.80 standard; up to 1.00 with ICO/IBAVI guarantee or seller-bank financing. }
+            nominalRate: { type: [number, 'null'], description: Annual nominal rate in % for fixed or the fixed leg of mixed. }
+            spread: { type: [number, 'null'], description: Spread over Euríbor in % for variable/mixed. }
+            fixedMonths: { type: [integer, 'null'], description: Fixed leg length for mixed mortgages. }
+            termMonths: { type: integer, minimum: 60, maximum: 480 }
+            euriborScenarios: { type: array, items: { type: number }, description: Annual Euríbor values in % to simulate; defaults to business config. }
+        buyer:
+          type: object
+          properties:
+            age: { type: integer, minimum: 18, maximum: 99 }
+            firstHome: { type: boolean }
+            primaryResidence: { type: boolean }
+            residentInBalearics: { type: boolean }
+            yearsResidentInBalearics: { type: [integer, 'null'] }
+            largeFamily: { type: boolean }
+            singleParentFamily: { type: boolean }
+            disabilityPercent: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+            taxableIncomeBase: { oneOf: [ { $ref: '#/components/schemas/Money' }, { type: 'null' } ], description: IRPF base for the 100 % bonus (limit 52,800 € individual). }
+            netWorth: { oneOf: [ { $ref: '#/components/schemas/Money' }, { type: 'null' } ], description: Needed for ICO guarantee eligibility (≤ 150,000 €). }
+        aids: { type: array, items: { type: string, enum: [IcoGuarantee, IbaviHipotecaJove, DirectYouthGrant] } }
+    FinancingProfile:
+      allOf:
+        - $ref: '#/components/schemas/FinancingProfileInput'
+        - type: object
+          required: [id, createdAt]
+          properties:
+            id: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    PurchaseSimulationRequest:
+      type: object
+      required: [price]
+      properties:
+        price: { $ref: '#/components/schemas/Money' }
+        isNewBuild: { type: boolean, default: false }
+        cadastralReferenceValue: { oneOf: [ { $ref: '#/components/schemas/Money' }, { type: 'null' } ] }
+        builtM2: { type: [number, 'null'] }
+        renovationLevel: { oneOf: [ { $ref: '#/components/schemas/RenovationLevel' }, { type: 'null' } ] }
+        financingProfileId: { type: [string, 'null'], format: uuid }
+        financingProfile: { oneOf: [ { $ref: '#/components/schemas/FinancingProfileInput' }, { type: 'null' } ], description: Inline profile when no stored one is used. }
+        businessConfigVersionId: { type: [string, 'null'], format: uuid, description: Defaults to the version in force. }
+    MaximumPriceRequest:
+      type: object
+      required: [financingProfileId]
+      properties:
+        financingProfileId: { type: string, format: uuid }
+        isNewBuild: { type: boolean, default: false }
+        renovationLevel: { $ref: '#/components/schemas/RenovationLevel' }
+        builtM2: { type: [number, 'null'], description: Needed to price the renovation; defaults to the config's typical size. }
+    MaximumPriceResponse:
+      type: object
+      properties:
+        maximumPrice: { $ref: '#/components/schemas/Money' }
+        bindingConstraint: { type: string, enum: [CashAtSigning, DebtToIncomeRatio, LoanToValue] }
+        analysisAtMaximum: { $ref: '#/components/schemas/ListingAnalysis' }
+    TaxRuleApplied:
+      type: object
+      properties:
+        ruleId: { type: string, example: itp_under36_2pct }
+        tax: { type: string, enum: [ITP, IVA, AJD] }
+        rate: { type: number, description: Effective rate in %. }
+        taxableBase: { $ref: '#/components/schemas/Money' }
+        amount: { $ref: '#/components/schemas/Money' }
+        reason: { type: string }
+        unverifiedConditions: { type: array, items: { type: string }, description: Conditions the engine could not check with the data available. }
+        sourceUrl: { type: string, format: uri }
+    ListingAnalysis:
+      type: object
+      required: [verdict, acquisitionCost, businessConfigVersionId, computedAt]
+      properties:
+        listingId: { type: [string, 'null'], format: uuid }
+        businessConfigVersionId: { type: string, format: uuid }
+        financingProfileSnapshot: { $ref: '#/components/schemas/FinancingProfileInput' }
+        computedAt: { type: string, format: date-time }
+        acquisitionCost:
+          type: object
+          properties:
+            price: { $ref: '#/components/schemas/Money' }
+            taxableBase: { $ref: '#/components/schemas/Money' }
+            taxes: { type: array, items: { $ref: '#/components/schemas/TaxRuleApplied' } }
+            notary: { $ref: '#/components/schemas/Money' }
+            registry: { $ref: '#/components/schemas/Money' }
+            agencyFees: { $ref: '#/components/schemas/Money' }
+            valuation: { $ref: '#/components/schemas/Money' }
+            renovation: { $ref: '#/components/schemas/RenovationEstimate' }
+            contingency: { $ref: '#/components/schemas/Money' }
+            total: { $ref: '#/components/schemas/Money' }
+        financing:
+          type: object
+          properties:
+            loanAmount: { $ref: '#/components/schemas/Money' }
+            loanToValue: { type: number }
+            cashAtSigning: { $ref: '#/components/schemas/Money', description: Total minus loan - what must be in the bank on signing day. }
+            monthlyPayment: { $ref: '#/components/schemas/Money' }
+            debtToIncomeRatio: { type: number }
+            scenarios: { type: array, items: { type: object, properties: { euribor: { type: number }, monthlyPayment: { $ref: '#/components/schemas/Money' }, debtToIncomeRatio: { type: number } } } }
+        verdict: { $ref: '#/components/schemas/AffordabilityVerdict' }
+        reasons: { type: array, items: { type: string }, example: ['Missing 12,340 € of cash at signing'] }
+        warnings: { type: array, items: { type: string }, example: ['Cadastral reference value unknown; ITP base computed from price only'] }
+        maximumAffordablePrice: { $ref: '#/components/schemas/Money' }
+        recommendedBid: { oneOf: [ { $ref: '#/components/schemas/Money' }, { type: 'null' } ] }
+        walkAwayPrice: { oneOf: [ { $ref: '#/components/schemas/Money' }, { type: 'null' } ] }
+        negotiationMargin: { type: [object, 'null'], properties: { minPercent: { type: number }, likelyPercent: { type: number }, maxPercent: { type: number }, explanation: { type: array, items: { type: string } } } }
+        score: { type: [object, 'null'], properties: { total: { type: integer, minimum: 0, maximum: 100 }, components: { type: array, items: { type: object, properties: { name: { type: string }, weight: { type: number }, value: { type: number }, explanation: { type: string } } } } } }
+        redFlags: { type: array, items: { type: object, properties: { code: { type: string }, severity: { type: string, enum: [Info, Warning, Critical] }, evidence: { type: string } } } }
+    RenovationEstimateRequest:
+      type: object
+      properties:
+        listingId: { type: [string, 'null'], format: uuid }
+        builtM2: { type: [number, 'null'] }
+        yearBuilt: { type: [integer, 'null'] }
+        description: { type: [string, 'null'] }
+        level: { oneOf: [ { $ref: '#/components/schemas/RenovationLevel' }, { type: 'null' } ] }
+        lineItems: { type: array, items: { type: object, properties: { code: { type: string, example: kitchen }, quantityM2: { type: number } } } }
+    RenovationEstimate:
+      type: object
+      properties:
+        level: { $ref: '#/components/schemas/RenovationLevel' }
+        source: { type: string, enum: [Rules, Manual, Llm] }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        min: { $ref: '#/components/schemas/Money' }
+        likely: { $ref: '#/components/schemas/Money' }
+        max: { $ref: '#/components/schemas/Money' }
+        lineItems: { type: array, items: { type: object, properties: { code: { type: string }, label: { type: string }, quantityM2: { type: number }, unitCost: { $ref: '#/components/schemas/Money' }, likely: { $ref: '#/components/schemas/Money' } } } }
+        toVerifyOnVisit: { type: array, items: { type: string } }
+        maxRenovationBudgetToStayAffordable: { oneOf: [ { $ref: '#/components/schemas/Money' }, { type: 'null' } ] }
+    RenovationOverride:
+      type: object
+      properties:
+        level: { oneOf: [ { $ref: '#/components/schemas/RenovationLevel' }, { type: 'null' } ] }
+        lineItems: { type: array, items: { type: object, properties: { code: { type: string }, amount: { $ref: '#/components/schemas/Money' } } } }
+        note: { type: [string, 'null'] }
+    SearchProfileInput:
+      type: object
+      required: [name, filters, channels]
+      properties:
+        name: { type: string }
+        filters: { $ref: '#/components/schemas/ListingSearchRequest' }
+        channels: { type: array, items: { type: string, enum: [Telegram, Email, Webhook] } }
+        priority: { type: boolean, default: false, description: Priority profiles drive the 15-minute polling of their sources. }
+    SearchProfile:
+      allOf:
+        - $ref: '#/components/schemas/SearchProfileInput'
+        - type: object
+          properties: { id: { type: string, format: uuid }, createdAt: { type: string, format: date-time } }
+    WatchlistItemInput:
+      type: object
+      required: [listingId]
+      properties:
+        listingId: { type: string, format: uuid }
+        notes: { type: [string, 'null'] }
+    WatchlistItemPatch:
+      type: object
+      properties:
+        status: { type: string, enum: [Seen, Visited, OfferMade, Discarded] }
+        notes: { type: [string, 'null'] }
+    WatchlistItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        listing: { $ref: '#/components/schemas/ListingSummary' }
+        status: { type: string, enum: [Seen, Visited, OfferMade, Discarded] }
+        notes: { type: [string, 'null'] }
+        addedAt: { type: string, format: date-time }
+    BusinessConfigVersion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        validFrom: { type: string, format: date }
+        validTo: { type: [string, 'null'], format: date }
+        taxRules: { type: array, items: { type: object, additionalProperties: true }, description: Serialised rule set (see docs/fiscalidad-baleares.md, tax_rules_draft). }
+        closingCosts: { type: object, additionalProperties: true }
+        renovationCostTable: { type: object, additionalProperties: true }
+        scoreWeights: { type: object, additionalProperties: { type: number } }
+        thresholds: { type: object, additionalProperties: true }
+        euriborScenarios: { type: array, items: { type: number } }
+    Source:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string, example: solvia }
+        kind: { type: string, enum: [Servicer, Bank, Agency, Feed, EmailAlert, Auction] }
+        adapterKey: { type: string }
+        pollInterval: { type: string, description: ISO 8601 duration., example: PT6H }
+        status: { type: string, enum: [Healthy, Degraded, Failing, Disabled] }
+        lastSuccessfulRunAt: { type: [string, 'null'], format: date-time }
+    SourceHealth:
+      type: object
+      properties:
+        source: { $ref: '#/components/schemas/Source' }
+        recentRuns: { type: array, items: { type: object, properties: { startedAt: { type: string, format: date-time }, finishedAt: { type: string, format: date-time }, listingsSeen: { type: integer }, created: { type: integer }, changed: { type: integer }, errors: { type: integer }, outcome: { type: string, enum: [Succeeded, Degraded, Failed] }, message: { type: [string, 'null'] } } } }
+    WebhookSubscriptionInput:
+      type: object
+      required: [url, events]
+      properties:
+        url: { type: string, format: uri }
+        events: { type: array, items: { type: string, enum: [listing.created, listing.priceChanged, listing.statusChanged, watchlist.changed] } }
+        secret: { type: string, description: Used to sign payloads (HMAC-SHA256 in X-HomeRadar-Signature). }
+    WebhookSubscription:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        events: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+    WebhookEnvelope:
+      type: object
+      properties:
+        id: { type: string, format: uuid, description: Delivery id; consumers must deduplicate on it. }
+        event: { type: string }
+        occurredAt: { type: string, format: date-time }
+        data: { type: object, additionalProperties: true }
