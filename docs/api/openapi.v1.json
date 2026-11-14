@@ -1,0 +1,3098 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "HomeRadar Mallorca API",
+    "description": "Headless API that watches low-competition property sources in Mallorca, records every listing change and tells its owner what they can afford. Conventions: kebab-case paths, camelCase JSON, ISO 8601 UTC timestamps, money as {amount, currency}, cursor pagination and RFC 9457 problem details for every error.",
+    "contact": {
+      "name": "HomeRadar",
+      "url": "https://github.com/JuanjoTorres/home-radar"
+    },
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/listings": {
+      "get": {
+        "tags": [
+          "Listings"
+        ],
+        "summary": "List listings with simple query-string filters.",
+        "description": "Quick listing lookup driven by query-string parameters. It is a thin front for `searchListings` with the most common filters\n(municipality, price range, source, \"new within N hours\") and the same cursor envelope. Use `searchListings` for geographic,\nhistory-based or multi-value filters.\n\nResults default to `Active` and `Relisted` listings, newest first (`firstSeenAt`). `daysOnMarket` counts from the publication\ndate when the source publishes one (Solvia, Aliseda, Inmovilla) and from the first time HomeRadar saw the listing otherwise.",
+        "operationId": "listListings",
+        "parameters": [
+          {
+            "name": "municipality",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "priceMin",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            }
+          },
+          {
+            "name": "priceMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "decimal"
+            }
+          },
+          {
+            "name": "sourceKey",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "newWithinHours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/ListingSortDto"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDtoOfListingSummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/listings/search": {
+      "post": {
+        "tags": [
+          "Listings"
+        ],
+        "summary": "Search listings with full filters.",
+        "description": "Full-text-free structured search over every listing HomeRadar has ingested. All filters are optional and combine with AND.\n\n**Geography.** `municipalities` compares case-insensitively with the municipality published by the source. `polygonWkt` is a\nWKT polygon in WGS84 (`POLYGON((lon lat, …))`) evaluated with PostGIS. `radius` is a circle in metres around a point, evaluated\non an EPSG:25831 projection so distances are metric. Listings without coordinates never match geographic filters.\n\n**History.** `daysOnMarket`, `priceDropsMin`, `cumulativeDropPercentMin` and `newWithinHours` come from the append-only change\nlog, not from the source: a drop is only counted once HomeRadar has seen both prices.\n\n**Possession.** Bank-owned stock often carries `NoPossession` (occupied, moratorium) or `RentedUntil`; `excludePossession`\nremoves those. `Unknown` means the source gave no signal.\n\n**Pagination.** Keyset cursors: pass back `nextCursor` unchanged with the same filters and sort. Changing the filters or sort\nwith an old cursor returns a 400. Sorts: `FirstSeenDesc` (default), `PriceAsc`, `PriceDesc`, `PricePerM2`, `PriceDropDesc`.\nListings without a price sort last for price-based sorts.\n\nAffordability filtering (`financingProfileId`, `budget`) arrives with the analysis engine in phase 2 as an additive change.",
+        "operationId": "searchListings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListingSearchRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDtoOfListingSummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/listings/{listingId}": {
+      "get": {
+        "tags": [
+          "Listings"
+        ],
+        "summary": "Get a listing with its photos, features and sibling listings.",
+        "description": "Returns the current state of one listing: summary fields, description, normalised features, photos with their perceptual hash\n(once computed) and the cadastral reference when the source publishes it. `features` holds source-specific facts under stable\nkeys (`elevator`, `terrace`, `parking`, `pool`, `yearBuilt`, `energyRating`, `previousPrice`, `discountPercent`, `badges`,\n`condition`, `postalCode`, `address`, `reference`, `campaign`, `specialSituation`, `cadastralParcel`…). `enrichments` holds facts\nderived by the rules engine, each labelled with its origin.\n\n`siblingListings` lists other listings of the same physical home once cross-source deduplication (phase 4) has matched them.",
+        "operationId": "getListing",
+        "parameters": [
+          {
+            "name": "listingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingDetailDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/listings/{listingId}/history": {
+      "get": {
+        "tags": [
+          "Listings"
+        ],
+        "summary": "Timeline of every detected change.",
+        "description": "The complete, immutable timeline of a listing, newest first. Every event points to the raw snapshot that evidences it, so a\nprice drop or a changed sentence can be audited later.\n\nPayload per type: `Created` {price, municipality, propertyType}; `PriceChanged` {before, after, deltaAmount, deltaPercent};\n`DescriptionChanged` {before, after}; `PhotoAdded` / `PhotoRemoved` / `PhotoReplaced` {url, position, replacedUrl};\n`FeaturesChanged` {before, after} (only changed keys; `_structure` summarises rooms/bathrooms/area/type);\n`StatusChanged` {before, after, possessionBefore, possessionAfter}; `Relisted` {lastSeenBefore, priceBefore, priceAfter};\n`CrossListed` and `AgencyChanged` {before, after}.",
+        "operationId": "getListingHistory",
+        "parameters": [
+          {
+            "name": "listingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDtoOfListingEventDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/financing-profiles": {
+      "get": {
+        "tags": [
+          "Financing profiles"
+        ],
+        "summary": "List financing profiles.",
+        "description": "Lists every stored financing profile. Profiles are seeded from `config/seed/financing-profiles*.yaml` at worker start-up and can\nbe managed here; a seed with a higher `revision` than the stored one overwrites it, otherwise API edits win.",
+        "operationId": "listFinancingProfiles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FinancingProfileDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Financing profiles"
+        ],
+        "summary": "Create a financing profile.",
+        "description": "Creates a financing profile. `key` must be unique. Send an `Idempotency-Key` header to make retries safe: the same key with the\nsame body replays the original response (`Idempotent-Replayed: true`); the same key with a different body is rejected with 409.\n\nMoney is accepted as `{amount, currency}` with `currency` fixed to `EUR`. The response carries a weak `ETag` to use in later\n`PUT` calls.",
+        "operationId": "createFinancingProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinancingProfileInputDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancingProfileDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/financing-profiles/{financingProfileId}": {
+      "get": {
+        "tags": [
+          "Financing profiles"
+        ],
+        "summary": "Get a financing profile.",
+        "description": "Returns one financing profile. The response carries a weak `ETag` (`W/\"<version>\"`) that must be sent back as `If-Match` on `PUT`.",
+        "operationId": "getFinancingProfile",
+        "parameters": [
+          {
+            "name": "financingProfileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancingProfileDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Financing profiles"
+        ],
+        "summary": "Replace a financing profile (requires If-Match).",
+        "description": "Replaces a financing profile. `If-Match` is mandatory (428 when missing) and must equal the current `ETag` (412 otherwise), so two\nclients never silently overwrite each other. `key` and `revision` are not changed by this operation.",
+        "operationId": "updateFinancingProfile",
+        "parameters": [
+          {
+            "name": "financingProfileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinancingProfileInputDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinancingProfileDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Precondition Failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Financing profiles"
+        ],
+        "summary": "Delete a financing profile.",
+        "description": "Deletes a financing profile. Analyses that referenced it keep their stored snapshot of the inputs.",
+        "operationId": "deleteFinancingProfile",
+        "parameters": [
+          {
+            "name": "financingProfileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/search-profiles": {
+      "get": {
+        "tags": [
+          "Search profiles"
+        ],
+        "summary": "List saved searches.",
+        "description": "Lists saved searches. Each one is evaluated in memory against every new listing during ingestion with the same specification the\ndatabase search uses, and raises an alert on the configured channels when it matches.",
+        "operationId": "listSearchProfiles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SearchProfileDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Search profiles"
+        ],
+        "summary": "Create a saved search with alert channels.",
+        "description": "Creates a saved search. `filter` uses the `searchListings` schema (sort, cursor and limit are ignored). Searches marked\n`priority` make the worker poll their sources' first page every 15 minutes in addition to the full scans. Supports\n`Idempotency-Key`.",
+        "operationId": "createSearchProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchProfileInputDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchProfileDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/search-profiles/{searchProfileId}": {
+      "get": {
+        "tags": [
+          "Search profiles"
+        ],
+        "summary": "Get a saved search.",
+        "description": "Returns one saved search with its weak `ETag`.",
+        "operationId": "getSearchProfile",
+        "parameters": [
+          {
+            "name": "searchProfileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchProfileDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Search profiles"
+        ],
+        "summary": "Replace a saved search (requires If-Match).",
+        "description": "Replaces a saved search; requires `If-Match` with the current `ETag`.",
+        "operationId": "updateSearchProfile",
+        "parameters": [
+          {
+            "name": "searchProfileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchProfileInputDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchProfileDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Precondition Failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Search profiles"
+        ],
+        "summary": "Delete a saved search.",
+        "description": "Deletes a saved search. Alerts already queued are still delivered.",
+        "operationId": "deleteSearchProfile",
+        "parameters": [
+          {
+            "name": "searchProfileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/watchlist": {
+      "get": {
+        "tags": [
+          "Watchlist"
+        ],
+        "summary": "List followed listings.",
+        "description": "Lists followed listings with their current summary. Any change on a followed listing (price, text, photos, status) is notified\non Telegram with a summarised diff, regardless of saved searches.",
+        "operationId": "listWatchlist",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WatchlistItemDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Watchlist"
+        ],
+        "summary": "Follow a listing; every later change is notified with a diff.",
+        "description": "Starts following a listing. 404 when the listing does not exist, 409 when it is already followed. Supports `Idempotency-Key`.",
+        "operationId": "addToWatchlist",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistItemInputDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistItemDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/watchlist/{watchlistItemId}": {
+      "patch": {
+        "tags": [
+          "Watchlist"
+        ],
+        "summary": "Update status or notes (requires If-Match).",
+        "description": "Updates the follow-up status (`Seen`, `Visited`, `OfferMade`, `Discarded`) and/or notes. Omitted fields keep their value.\nRequires `If-Match`.",
+        "operationId": "updateWatchlistItem",
+        "parameters": [
+          {
+            "name": "watchlistItemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistItemPatchDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistItemDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Precondition Failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition Required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Watchlist"
+        ],
+        "summary": "Stop following a listing.",
+        "description": "Stops following a listing. Its history is kept.",
+        "operationId": "removeFromWatchlist",
+        "parameters": [
+          {
+            "name": "watchlistItemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sources": {
+      "get": {
+        "tags": [
+          "Sources"
+        ],
+        "summary": "Registered sources and their health.",
+        "description": "Every registered source with its polling intervals and health. `status` moves to `Degraded` when a run returns no listings after\nearlier successful runs or more than 20 % incomplete records (nothing is withdrawn in that case), and to `Failing` after three\nconsecutive failures; a Telegram alert is sent on every transition.",
+        "operationId": "listSources",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SourceDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sources/{sourceId}/health": {
+      "get": {
+        "tags": [
+          "Sources"
+        ],
+        "summary": "Recent runs, counters and errors of a source.",
+        "description": "The source plus its last 20 runs, newest first, with counters (seen, created, changed, withdrawn, errors) and the reason for\ndegraded or failed runs — for example `robots.txt disallows …` or a schema-change detection.",
+        "operationId": "getSourceHealth",
+        "parameters": [
+          {
+            "name": "sourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceHealthDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BuyerProfileDto": {
+        "required": [
+          "age"
+        ],
+        "type": "object",
+        "properties": {
+          "age": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Age in years (18–99).",
+            "format": "int32"
+          },
+          "firstHome": {
+            "type": "boolean",
+            "description": "First home purchase."
+          },
+          "primaryResidence": {
+            "type": "boolean",
+            "description": "Will be the primary residence."
+          },
+          "residentInBalearics": {
+            "type": "boolean",
+            "description": "Currently resident in the Balearic Islands."
+          },
+          "yearsResidentInBalearics": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Years of residence in the Balearic Islands.",
+            "format": "int32"
+          },
+          "largeFamily": {
+            "type": "boolean",
+            "description": "Large family (familia numerosa)."
+          },
+          "singleParentFamily": {
+            "type": "boolean",
+            "description": "Single-parent family."
+          },
+          "disabilityPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Recognised disability in % (0–100).",
+            "format": "int32"
+          },
+          "taxableIncomeBase": {
+            "type": "number",
+            "description": "IRPF taxable base in EUR, needed for the 100 % ITP bonus (limit 52,800 € individual).",
+            "format": "decimal"
+          },
+          "netWorth": {
+            "type": "number",
+            "description": "Net worth in EUR, needed for the ICO guarantee (≤ 150,000 €).",
+            "format": "decimal"
+          }
+        },
+        "description": "Personal circumstances that decide which tax reductions and aids apply."
+      },
+      "DecimalRangeDto": {
+        "required": [
+          "min",
+          "max"
+        ],
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number",
+            "description": "Lower bound, inclusive.",
+            "format": "decimal"
+          },
+          "max": {
+            "type": "number",
+            "description": "Upper bound, inclusive.",
+            "format": "decimal"
+          }
+        },
+        "description": "Range filter with inclusive bounds."
+      },
+      "FinancingProfileDto": {
+        "required": [
+          "id",
+          "key",
+          "revision",
+          "name",
+          "savings",
+          "netMonthlyIncome",
+          "existingMonthlyDebt",
+          "maxDebtToIncomeRatio",
+          "mortgage",
+          "buyer",
+          "isDefault",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifier.",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string",
+            "description": "Stable key."
+          },
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Revision applied from seed files; API updates do not change it.",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name."
+          },
+          "savings": {
+            "description": "Savings available.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "netMonthlyIncome": {
+            "description": "Net monthly income.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "existingMonthlyDebt": {
+            "description": "Existing monthly debt.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "maxDebtToIncomeRatio": {
+            "type": "number",
+            "description": "Maximum debt-to-income ratio.",
+            "format": "decimal"
+          },
+          "mortgage": {
+            "description": "Mortgage assumptions.",
+            "$ref": "#/components/schemas/MortgageTermsDto"
+          },
+          "buyer": {
+            "description": "Buyer circumstances.",
+            "$ref": "#/components/schemas/BuyerProfileDto"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "Default profile flag."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Last update (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "Stored financing profile."
+      },
+      "FinancingProfileInputDto": {
+        "required": [
+          "key",
+          "name",
+          "savings",
+          "netMonthlyIncome",
+          "mortgage",
+          "buyer"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Stable key, e.g. default."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name."
+          },
+          "savings": {
+            "description": "Savings available for deposit and costs.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "netMonthlyIncome": {
+            "description": "Net monthly income of all borrowers.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "existingMonthlyDebt": {
+            "description": "Existing monthly debt payments.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "maxDebtToIncomeRatio": {
+            "type": "number",
+            "description": "Maximum debt-to-income ratio (0.1–0.6), default 0.35.",
+            "format": "decimal"
+          },
+          "mortgage": {
+            "description": "Mortgage assumptions.",
+            "$ref": "#/components/schemas/MortgageTermsDto"
+          },
+          "buyer": {
+            "description": "Buyer circumstances.",
+            "$ref": "#/components/schemas/BuyerProfileDto"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "Use this profile when none is specified."
+          }
+        },
+        "description": "Input to create or replace a financing profile."
+      },
+      "GeoPointDto": {
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Always `Point`."
+          },
+          "coordinates": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            },
+            "description": "Longitude then latitude, e.g. [2.9108, 39.7211]."
+          }
+        },
+        "description": "GeoJSON point (WGS84)."
+      },
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "IntRangeDto": {
+        "required": [
+          "min",
+          "max"
+        ],
+        "type": "object",
+        "properties": {
+          "min": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Lower bound, inclusive.",
+            "format": "int32"
+          },
+          "max": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Upper bound, inclusive.",
+            "format": "int32"
+          }
+        },
+        "description": "Integer range filter with inclusive bounds."
+      },
+      "JsonElement": { },
+      "ListingDetailDto": {
+        "required": [
+          "summary",
+          "features",
+          "enrichments",
+          "photos",
+          "siblingListings"
+        ],
+        "type": "object",
+        "properties": {
+          "summary": {
+            "description": "Summary fields.",
+            "$ref": "#/components/schemas/ListingSummaryDto"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Description as published."
+          },
+          "features": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Normalised features (elevator, terrace, parking, yearBuilt, energyRating, previousPrice…)."
+          },
+          "enrichments": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Derived facts added by the rules engine, keyed by name."
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhotoDto"
+            },
+            "description": "Photos in published order."
+          },
+          "cadastralReference": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Cadastral reference (20 characters) when the source publishes it."
+          },
+          "siblingListings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListingSummaryDto"
+            },
+            "description": "Other listings of the same home, when matched (phase 4)."
+          }
+        },
+        "description": "Full listing, including description, features and photos."
+      },
+      "ListingEventDto": {
+        "required": [
+          "id",
+          "type",
+          "occurredAt",
+          "payload"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Event identifier.",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "description": "Event type: Created, PriceChanged, DescriptionChanged, PhotoAdded, PhotoRemoved, PhotoReplaced, FeaturesChanged, StatusChanged, Relisted, CrossListed, AgencyChanged."
+          },
+          "occurredAt": {
+            "type": "string",
+            "description": "When the change was detected (UTC).",
+            "format": "date-time"
+          },
+          "snapshotId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Raw snapshot that evidences the change.",
+            "format": "uuid"
+          },
+          "payload": {
+            "description": "Event-specific payload. PriceChanged: before, after, deltaAmount, deltaPercent. DescriptionChanged: before, after. Photo events: url, position, replacedUrl.",
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        },
+        "description": "One recorded change of a listing."
+      },
+      "ListingSearchRequestDto": {
+        "type": "object",
+        "properties": {
+          "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Asking price range in EUR.",
+                "$ref": "#/components/schemas/DecimalRangeDto"
+              }
+            ]
+          },
+          "pricePerM2": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Price per built m² range in EUR.",
+                "$ref": "#/components/schemas/DecimalRangeDto"
+              }
+            ]
+          },
+          "builtM2": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Built area range in m².",
+                "$ref": "#/components/schemas/DecimalRangeDto"
+              }
+            ]
+          },
+          "rooms": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Bedrooms range.",
+                "$ref": "#/components/schemas/IntRangeDto"
+              }
+            ]
+          },
+          "bathroomsMin": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Minimum bathrooms.",
+            "format": "int32"
+          },
+          "propertyTypes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Property types to include: Flat, House, Townhouse, Finca, Penthouse, Studio, Garage, Commercial, Land, Other."
+          },
+          "municipalities": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Municipalities (case-insensitive), e.g. [\"Inca\", \"Lloseta\"]."
+          },
+          "polygonWkt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "WKT polygon in WGS84 (lon lat pairs)."
+          },
+          "radius": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Circle around a point.",
+                "$ref": "#/components/schemas/RadiusDto"
+              }
+            ]
+          },
+          "sellerTypes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Seller types: Servicer, Bank, Agency, Auction, Private."
+          },
+          "sourceKeys": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Source keys, e.g. [\"solvia\", \"aliseda\"]."
+          },
+          "yearBuilt": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Year built range (needs sources that publish it).",
+                "$ref": "#/components/schemas/IntRangeDto"
+              }
+            ]
+          },
+          "daysOnMarket": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Days on market range.",
+                "$ref": "#/components/schemas/IntRangeDto"
+              }
+            ]
+          },
+          "priceDropsMin": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Minimum number of price drops.",
+            "format": "int32"
+          },
+          "cumulativeDropPercentMin": {
+            "type": "number",
+            "description": "Minimum cumulative drop in %.",
+            "format": "decimal"
+          },
+          "newWithinHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Only listings first seen within the last N hours (1–720).",
+            "format": "int32"
+          },
+          "statuses": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Statuses to include; defaults to Active and Relisted."
+          },
+          "excludePossession": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Possession statuses to exclude, e.g. [\"NoPossession\", \"Occupied\"]."
+          },
+          "elevator": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Require (true) or exclude (false) elevator."
+          },
+          "terrace": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Require (true) or exclude (false) terrace."
+          },
+          "parking": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Require (true) or exclude (false) parking."
+          },
+          "includeNewBuild": {
+            "type": "boolean",
+            "description": "Include new-build listings; defaults to true."
+          },
+          "sort": {
+            "description": "Sort order; defaults to FirstSeenDesc.",
+            "$ref": "#/components/schemas/ListingSortDto"
+          },
+          "cursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Cursor from a previous page."
+          },
+          "limit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Page size (1–100), default 25.",
+            "format": "int32"
+          }
+        },
+        "description": "Search criteria. Every field is optional; omitted fields do not filter."
+      },
+      "ListingSortDto": {
+        "enum": [
+          "FirstSeenDesc",
+          "PriceAsc",
+          "PriceDesc",
+          "PricePerM2",
+          "PriceDropDesc",
+          null
+        ]
+      },
+      "ListingSummaryDto": {
+        "required": [
+          "id",
+          "sourceKey",
+          "sellerType",
+          "externalId",
+          "url",
+          "title",
+          "propertyType",
+          "status",
+          "possession",
+          "firstSeenAt",
+          "lastSeenAt",
+          "daysOnMarket",
+          "priceDrops",
+          "cumulativeDropPercent"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Listing identifier.",
+            "format": "uuid"
+          },
+          "dwellingId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Physical home grouping several listings, when matched (phase 4).",
+            "format": "uuid"
+          },
+          "sourceKey": {
+            "type": "string",
+            "description": "Source key, e.g. solvia."
+          },
+          "sellerType": {
+            "type": "string",
+            "description": "Kind of seller behind the source."
+          },
+          "externalId": {
+            "type": "string",
+            "description": "Identifier of the listing inside its source."
+          },
+          "url": {
+            "type": "string",
+            "description": "Public URL of the listing.",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title as published."
+          },
+          "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Current asking price; `null` when the source hides it.",
+                "$ref": "#/components/schemas/MoneyDto"
+              }
+            ]
+          },
+          "pricePerSquareMetre": {
+            "type": "number",
+            "description": "Price per built square metre in EUR, when both figures are known.",
+            "format": "decimal"
+          },
+          "builtSquareMetres": {
+            "type": "number",
+            "description": "Built area in m².",
+            "format": "decimal"
+          },
+          "usableSquareMetres": {
+            "type": "number",
+            "description": "Usable area in m² when published.",
+            "format": "decimal"
+          },
+          "rooms": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Number of bedrooms.",
+            "format": "int32"
+          },
+          "bathrooms": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Number of bathrooms.",
+            "format": "int32"
+          },
+          "propertyType": {
+            "type": "string",
+            "description": "Normalised property type."
+          },
+          "municipality": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Municipality, e.g. Inca."
+          },
+          "zone": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Zone, street or urbanisation as published."
+          },
+          "location": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Location when the source publishes coordinates.",
+                "$ref": "#/components/schemas/GeoPointDto"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "Lifecycle status."
+          },
+          "possession": {
+            "type": "string",
+            "description": "Occupancy as published by the source; critical for bank-owned stock."
+          },
+          "firstSeenAt": {
+            "type": "string",
+            "description": "When the listing was first seen by HomeRadar (UTC).",
+            "format": "date-time"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "description": "When the listing was last confirmed online (UTC).",
+            "format": "date-time"
+          },
+          "publishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Publication date according to the source, when available.",
+            "format": "date-time"
+          },
+          "daysOnMarket": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Days since publication (or since first seen when the source gives no date).",
+            "format": "int32"
+          },
+          "priceDrops": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Number of price drops recorded.",
+            "format": "int32"
+          },
+          "cumulativeDropPercent": {
+            "type": "number",
+            "description": "Total drop since the first price seen, in %.",
+            "format": "decimal"
+          },
+          "mainPhotoUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "First photo, when any.",
+            "format": "uri"
+          }
+        },
+        "description": "Compact listing representation used in lists and search results."
+      },
+      "MoneyDto": {
+        "required": [
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "Amount in the currency, e.g. 245000.00.",
+            "format": "decimal"
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 code; only `EUR` is used.",
+            "default": "EUR"
+          }
+        },
+        "description": "Monetary amount. Always two fraction digits."
+      },
+      "MortgageTermsDto": {
+        "required": [
+          "type",
+          "maxLoanToValue",
+          "termMonths"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Fixed, Variable or Mixed."
+          },
+          "maxLoanToValue": {
+            "type": "number",
+            "description": "Maximum loan-to-value as a fraction (0.5–1.0). 0.80 is standard; up to 1.00 with an ICO/IBAVI guarantee.",
+            "format": "decimal"
+          },
+          "nominalRatePercent": {
+            "type": "number",
+            "description": "Annual nominal rate in % for Fixed, or the fixed leg of Mixed, e.g. 2.9.",
+            "format": "decimal"
+          },
+          "spreadPercent": {
+            "type": "number",
+            "description": "Spread over Euríbor in % for Variable or Mixed.",
+            "format": "decimal"
+          },
+          "fixedMonths": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Length of the fixed leg in months for Mixed mortgages.",
+            "format": "int32"
+          },
+          "termMonths": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Term in months (60–480).",
+            "format": "int32"
+          }
+        },
+        "description": "Mortgage offer assumed for affordability calculations."
+      },
+      "PageDtoOfListingEventDto": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListingEventDto"
+            },
+            "description": "Items of this page, in the requested order."
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Opaque cursor for the next page; `null` when there is none."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "Whether another page exists."
+          }
+        },
+        "description": "Cursor-paginated envelope shared by every list operation."
+      },
+      "PageDtoOfListingSummaryDto": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListingSummaryDto"
+            },
+            "description": "Items of this page, in the requested order."
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Opaque cursor for the next page; `null` when there is none."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "Whether another page exists."
+          }
+        },
+        "description": "Cursor-paginated envelope shared by every list operation."
+      },
+      "PhotoDto": {
+        "required": [
+          "url",
+          "position",
+          "perceptualHash"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Original URL.",
+            "format": "uri"
+          },
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Zero-based position in the gallery.",
+            "format": "int32"
+          },
+          "perceptualHash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "64-bit perceptual hash in hex, once computed."
+          }
+        },
+        "description": "Photo of a listing."
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RadiusDto": {
+        "required": [
+          "latitude",
+          "longitude",
+          "metres"
+        ],
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "WGS84 latitude, e.g. 39.7211.",
+            "format": "double"
+          },
+          "longitude": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "WGS84 longitude, e.g. 2.9108.",
+            "format": "double"
+          },
+          "metres": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Radius in metres (50–50000).",
+            "format": "int32"
+          }
+        },
+        "description": "Circle around a point."
+      },
+      "SearchProfileDto": {
+        "required": [
+          "id",
+          "key",
+          "revision",
+          "name",
+          "filter",
+          "channels",
+          "priority",
+          "enabled",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifier.",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string",
+            "description": "Stable key."
+          },
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Seed revision.",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name."
+          },
+          "filter": {
+            "description": "Filters.",
+            "$ref": "#/components/schemas/ListingSearchRequestDto"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Alert channels."
+          },
+          "priority": {
+            "type": "boolean",
+            "description": "Priority flag."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Enabled flag."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Last update (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "Stored saved search."
+      },
+      "SearchProfileInputDto": {
+        "required": [
+          "key",
+          "name",
+          "filter"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Stable key, e.g. inca-centro."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name used in alerts."
+          },
+          "filter": {
+            "description": "Filters; the same schema as `searchListings` minus sort and pagination.",
+            "$ref": "#/components/schemas/ListingSearchRequestDto"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Alert channels: Telegram, Email, Webhook."
+          },
+          "priority": {
+            "type": "boolean",
+            "description": "Priority searches drive the 15-minute quick scans of their sources."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Disabled searches keep their definition but raise no alerts."
+          }
+        },
+        "description": "Input to create or replace a saved search."
+      },
+      "SourceDto": {
+        "required": [
+          "id",
+          "key",
+          "name",
+          "kind",
+          "adapterKey",
+          "pollInterval",
+          "priority",
+          "enabled",
+          "status",
+          "consecutiveFailures",
+          "lastListingCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifier.",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string",
+            "description": "Stable key, e.g. solvia."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name."
+          },
+          "kind": {
+            "type": "string",
+            "description": "Servicer, Bank, Agency, Feed, EmailAlert, Auction or Aggregator."
+          },
+          "adapterKey": {
+            "type": "string",
+            "description": "Adapter key resolving the implementation."
+          },
+          "pollInterval": {
+            "type": "string",
+            "description": "Full-scan interval (ISO 8601 duration), e.g. PT6H."
+          },
+          "priorityPollInterval": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Quick-scan interval for priority sources."
+          },
+          "priority": {
+            "type": "boolean",
+            "description": "Priority flag."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Enabled flag."
+          },
+          "status": {
+            "type": "string",
+            "description": "Healthy, Degraded, Failing or Disabled."
+          },
+          "lastSuccessfulRunAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Last run that completed successfully (UTC).",
+            "format": "date-time"
+          },
+          "lastRunAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Last run of any outcome (UTC).",
+            "format": "date-time"
+          },
+          "consecutiveFailures": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Consecutive failed or degraded runs.",
+            "format": "int32"
+          },
+          "lastListingCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Listings seen in the last successful run.",
+            "format": "int32"
+          }
+        },
+        "description": "A registered source and its health."
+      },
+      "SourceHealthDto": {
+        "required": [
+          "source",
+          "recentRuns"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "description": "The source.",
+            "$ref": "#/components/schemas/SourceDto"
+          },
+          "recentRuns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceRunDto"
+            },
+            "description": "Most recent runs, newest first."
+          }
+        },
+        "description": "Source with its recent runs."
+      },
+      "SourceRunDto": {
+        "required": [
+          "startedAt",
+          "fullScan",
+          "outcome",
+          "listingsSeen",
+          "listingsCreated",
+          "listingsChanged",
+          "listingsWithdrawn",
+          "errors"
+        ],
+        "type": "object",
+        "properties": {
+          "startedAt": {
+            "type": "string",
+            "description": "Start (UTC).",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "End (UTC); null while running.",
+            "format": "date-time"
+          },
+          "fullScan": {
+            "type": "boolean",
+            "description": "Whether it enumerated every listing."
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Running, Succeeded, Degraded or Failed."
+          },
+          "listingsSeen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Listings seen.",
+            "format": "int32"
+          },
+          "listingsCreated": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "New listings.",
+            "format": "int32"
+          },
+          "listingsChanged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Listings with changes.",
+            "format": "int32"
+          },
+          "listingsWithdrawn": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Listings marked withdrawn.",
+            "format": "int32"
+          },
+          "errors": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Errors while ingesting individual listings.",
+            "format": "int32"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Human-readable reason for degraded or failed runs."
+          }
+        },
+        "description": "One execution of a source."
+      },
+      "WatchlistItemDto": {
+        "required": [
+          "id",
+          "listing",
+          "status",
+          "addedAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifier.",
+            "format": "uuid"
+          },
+          "listing": {
+            "description": "The followed listing.",
+            "$ref": "#/components/schemas/ListingSummaryDto"
+          },
+          "status": {
+            "type": "string",
+            "description": "Seen, Visited, OfferMade or Discarded."
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Notes."
+          },
+          "addedAt": {
+            "type": "string",
+            "description": "When it was added (UTC).",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Last update (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "A followed listing."
+      },
+      "WatchlistItemInputDto": {
+        "required": [
+          "listingId",
+          "notes"
+        ],
+        "type": "object",
+        "properties": {
+          "listingId": {
+            "type": "string",
+            "description": "Listing to follow.",
+            "format": "uuid"
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Free-text notes."
+          }
+        },
+        "description": "Input to start following a listing."
+      },
+      "WatchlistItemPatchDto": {
+        "required": [
+          "status",
+          "notes"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Seen, Visited, OfferMade or Discarded."
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Free-text notes; omit to keep the current ones."
+          }
+        },
+        "description": "Partial update of a watchlist item."
+      }
+    },
+    "securitySchemes": {
+      "ApiKey": {
+        "type": "apiKey",
+        "description": "Static API key configured in HomeRadar:ApiKey.",
+        "name": "X-Api-Key",
+        "in": "header"
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKey": [ ]
+    }
+  ],
+  "tags": [
+    {
+      "name": "Listings"
+    },
+    {
+      "name": "Financing profiles"
+    },
+    {
+      "name": "Search profiles"
+    },
+    {
+      "name": "Watchlist"
+    },
+    {
+      "name": "Sources"
+    }
+  ]
+}

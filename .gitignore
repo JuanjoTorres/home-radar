@@ -9,3 +9,4 @@ config/seed/*.local.yaml
 TestResults/
 node_modules/
 config/seed/*.local.yaml
+docs/api/generated/

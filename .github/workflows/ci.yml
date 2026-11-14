@@ -42,11 +42,17 @@ jobs:
           HOMERADAR_TEST_CONNECTION: Host=localhost;Port=5432;Username=homeradar;Password=homeradar;Database=homeradar_test
         run: dotnet test --no-build -c Release
       - name: Lint OpenAPI
-        run: npx --yes @stoplight/spectral-cli lint docs/api/generated/*.json --ruleset docs/api/.spectral.yaml
+        run: npx --yes @stoplight/spectral-cli lint docs/api/generated/HomeRadar.Api.json --ruleset docs/api/.spectral.yaml
+      - name: OpenAPI contract is committed
+        run: |
+          cp docs/api/generated/HomeRadar.Api.json docs/api/openapi.v1.json
+          git diff --exit-code -- docs/api/openapi.v1.json || (echo "docs/api/openapi.v1.json is out of date: run the build with -p:GenerateOpenApi=true and commit it" && exit 1)
       - name: Detect breaking API changes
         if: github.event_name == 'pull_request'
         run: |
-          docker run --rm -v "$PWD:/specs:ro" tufin/oasdiff breaking /specs/docs/api/openapi.v1.json /specs/docs/api/generated/HomeRadar.Api_v1.json --fail-on ERR || true
+          git fetch --depth=1 origin "${{ github.base_ref }}"
+          git show "origin/${{ github.base_ref }}:docs/api/openapi.v1.json" > /tmp/base.json || exit 0
+          docker run --rm -v "$PWD:/specs:ro" -v /tmp/base.json:/base.json:ro tufin/oasdiff breaking /base.json /specs/docs/api/openapi.v1.json --fail-on ERR
       - name: Upload generated OpenAPI
         uses: actions/upload-artifact@v4
         with:
