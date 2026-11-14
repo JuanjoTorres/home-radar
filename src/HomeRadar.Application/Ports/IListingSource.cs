@@ -22,9 +22,22 @@ public interface IListingSource
     IAsyncEnumerable<FetchedListing> FetchAsync(SourceFetchContext context, CancellationToken cancellationToken);
 }
 
-public sealed record SourceFetchContext(Source Source, bool FullScan, Guid? AgencyId);
+/// <summary>What the orchestrator tells an adapter before a run.</summary>
+/// <param name="Source">Source definition, including its JSON configuration.</param>
+/// <param name="FullScan">True when every listing must be enumerated (withdrawals are only detected on full scans).</param>
+/// <param name="AgencyId">Agency the source belongs to, when it is an agency website.</param>
+/// <param name="StoredFingerprint">Returns the fingerprint stored for an external id, or null when the listing is unknown; lets adapters skip detail pages for unchanged listings.</param>
+public sealed record SourceFetchContext(Source Source, bool FullScan, Guid? AgencyId, Func<string, CancellationToken, Task<string?>> StoredFingerprint);
 
-public sealed record FetchedListing(ListingObservation Observation, RawDocument Raw);
+/// <summary>One listing seen during a fetch. <see cref="Observation"/> is null when the adapter verified the listing is unchanged and skipped its detail page.</summary>
+public sealed record FetchedListing(string ExternalId, ListingObservation? Observation, RawDocument? Raw)
+{
+    public static FetchedListing Unchanged(string externalId) => new(externalId, null, null);
+
+    public static FetchedListing Of(ListingObservation observation, RawDocument raw) => new(observation.ExternalId, observation, raw);
+
+    public bool IsUnchanged => Observation is null;
+}
 
 public sealed record RawDocument(string ContentType, string Body);
 

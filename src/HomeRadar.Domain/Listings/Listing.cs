@@ -176,6 +176,8 @@ public sealed class Listing : Entity
 
     public void AssignDwelling(Guid dwellingId) => DwellingId = dwellingId;
 
+    public void Touch(DateTimeOffset now) => LastSeenAt = now;
+
     public void ApplyEnrichment(IEnumerable<KeyValuePair<string, string>> facts)
     {
         foreach (var fact in facts)

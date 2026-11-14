@@ -33,15 +33,23 @@ public sealed class SourceIngestionService(
             var incomplete = 0;
             var seenExternalIds = new HashSet<string>(StringComparer.Ordinal);
 
-            await foreach (var fetched in adapter.FetchAsync(new SourceFetchContext(source, fullScan, null), cancellationToken))
+            var context = new SourceFetchContext(source, fullScan, null, (externalId, token) => StoredFingerprintAsync(source.Id, externalId, token));
+            await foreach (var fetched in adapter.FetchAsync(context, cancellationToken))
             {
-                if (!IsUsable(fetched.Observation))
+                if (fetched.IsUnchanged)
+                {
+                    seenExternalIds.Add(fetched.ExternalId);
+                    await TouchAsync(source, run, fetched.ExternalId, cancellationToken);
+                    continue;
+                }
+
+                if (!IsUsable(fetched.Observation!))
                 {
                     incomplete++;
                     continue;
                 }
 
-                seenExternalIds.Add(fetched.Observation.ExternalId);
+                seenExternalIds.Add(fetched.ExternalId);
                 await IngestOneAsync(source, run, fetched, cancellationToken);
             }
 
@@ -69,6 +77,28 @@ public sealed class SourceIngestionService(
         return run;
     }
 
+    private async Task<string?> StoredFingerprintAsync(Guid sourceId, string externalId, CancellationToken cancellationToken)
+    {
+        var features = await db.Listings.AsNoTracking()
+            .Where(listing => listing.SourceId == sourceId && listing.ExternalId == externalId)
+            .Select(listing => listing.Features)
+            .SingleOrDefaultAsync(cancellationToken);
+        return features is not null && features.TryGetValue(FeatureKeys.Fingerprint, out var fingerprint) ? fingerprint : null;
+    }
+
+    private async Task TouchAsync(Source source, SourceRun run, string externalId, CancellationToken cancellationToken)
+    {
+        var listing = await db.Listings.SingleOrDefaultAsync(candidate => candidate.SourceId == source.Id && candidate.ExternalId == externalId, cancellationToken);
+        if (listing is null)
+        {
+            return;
+        }
+
+        run.CountSeen();
+        listing.Touch(clock.GetUtcNow());
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     private static bool IsUsable(ListingObservation observation) =>
         observation.ExternalId.Length > 0 && observation.Url.IsAbsoluteUri && observation.Price is not null;
 
@@ -87,7 +117,7 @@ public sealed class SourceIngestionService(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             run.CountError();
-            logger.LogWarning(exception, "Listing {ExternalId} from {SourceKey} could not be ingested", fetched.Observation.ExternalId, source.Key);
+            logger.LogWarning(exception, "Listing {ExternalId} from {SourceKey} could not be ingested", fetched.ExternalId, source.Key);
         }
     }
 

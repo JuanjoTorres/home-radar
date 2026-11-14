@@ -177,7 +177,7 @@ public sealed class IngestionPipelineTests(DatabaseFixture fixture)
             foreach (var observation in Listings)
             {
                 await Task.Yield();
-                yield return new FetchedListing(observation, new RawDocument("text/html", $"<html>{observation.ExternalId}:{observation.Price}</html>"));
+                yield return FetchedListing.Of(observation, new RawDocument("text/html", $"<html>{observation.ExternalId}:{observation.Price}</html>"));
             }
         }
     }

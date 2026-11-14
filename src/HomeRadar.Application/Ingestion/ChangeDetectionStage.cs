@@ -10,7 +10,7 @@ public sealed class ChangeDetectionStage(IHomeRadarDbContext db) : IIngestionSta
 
     public async Task ExecuteAsync(IngestionContext context, CancellationToken cancellationToken)
     {
-        var observation = context.Fetched.Observation;
+        var observation = context.Fetched.Observation!;
         var listing = await db.Listings
             .Include(candidate => candidate.Photos)
             .SingleOrDefaultAsync(candidate => candidate.SourceId == context.Source.Id && candidate.ExternalId == observation.ExternalId, cancellationToken);
@@ -44,7 +44,7 @@ public sealed class ChangeDetectionStage(IHomeRadarDbContext db) : IIngestionSta
                 context.Run.Id,
                 context.Now,
                 listing.ContentHash,
-                context.Fetched.Raw.ContentType,
+                context.Fetched.Raw!.ContentType,
                 SnapshotCompression.Compress(context.Fetched.Raw.Body));
             db.ListingSnapshots.Add(snapshot);
             foreach (var listingEvent in context.NewEvents)
