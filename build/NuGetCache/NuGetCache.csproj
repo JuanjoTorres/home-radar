@@ -51,7 +51,6 @@
     <PackageReference Include="Shouldly" />
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="CsCheck" />
-    <PackageReference Include="Verify.XunitV3" />
     <PackageReference Include="TngTech.ArchUnitNET" />
     <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
     <PackageReference Include="Testcontainers.PostgreSql" />

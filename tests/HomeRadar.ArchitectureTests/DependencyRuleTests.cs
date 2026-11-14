@@ -16,11 +16,11 @@ public sealed class DependencyRuleTests
             typeof(Program).Assembly)
         .Build();
 
-    private static readonly IObjectProvider<IType> DomainLayer = Types().That().ResideInNamespace("HomeRadar.Domain", true).As("Domain");
-    private static readonly IObjectProvider<IType> ApplicationLayer = Types().That().ResideInNamespace("HomeRadar.Application", true).As("Application");
-    private static readonly IObjectProvider<IType> InfrastructureLayer = Types().That().ResideInNamespace("HomeRadar.Infrastructure", true).As("Infrastructure");
-    private static readonly IObjectProvider<IType> SourcesLayer = Types().That().ResideInNamespace("HomeRadar.Sources", true).As("Sources");
-    private static readonly IObjectProvider<IType> ApiLayer = Types().That().ResideInNamespace("HomeRadar.Api", true).As("Api");
+    private static readonly IObjectProvider<IType> DomainLayer = Types().That().ResideInNamespaceMatching("^HomeRadar.Domain").As("Domain");
+    private static readonly IObjectProvider<IType> ApplicationLayer = Types().That().ResideInNamespaceMatching("^HomeRadar.Application").As("Application");
+    private static readonly IObjectProvider<IType> InfrastructureLayer = Types().That().ResideInNamespaceMatching("^HomeRadar.Infrastructure").As("Infrastructure");
+    private static readonly IObjectProvider<IType> SourcesLayer = Types().That().ResideInNamespaceMatching("^HomeRadar.Sources").As("Sources");
+    private static readonly IObjectProvider<IType> ApiLayer = Types().That().ResideInNamespaceMatching("^HomeRadar.Api").As("Api");
 
     [Fact]
     public void Domain_does_not_depend_on_any_other_layer() =>
@@ -49,7 +49,7 @@ public sealed class DependencyRuleTests
     [Fact]
     public void Domain_does_not_reference_entity_framework_or_http() =>
         Types().That().Are(DomainLayer)
-            .Should().NotDependOnAnyTypesThat().ResideInNamespace("Microsoft.EntityFrameworkCore", true)
-            .AndShould().NotDependOnAnyTypesThat().ResideInNamespace("System.Net.Http", true)
+            .Should().NotDependOnAnyTypesThat().ResideInNamespaceMatching("^Microsoft.EntityFrameworkCore")
+            .AndShould().NotDependOnAnyTypesThat().ResideInNamespaceMatching("^System.Net.Http")
             .Check(Architecture);
 }

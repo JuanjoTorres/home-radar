@@ -40,7 +40,14 @@ dotnet_diagnostic.CA1034.severity = none
 dotnet_diagnostic.CA1515.severity = none
 dotnet_diagnostic.CA1819.severity = none
 
-# Naming: private fields _camelCase, everything else PascalCase
+# Naming: private static readonly fields PascalCase, other private fields _camelCase
+dotnet_naming_rule.private_static_readonly_pascal.symbols = private_static_readonly
+dotnet_naming_rule.private_static_readonly_pascal.style = pascal
+dotnet_naming_rule.private_static_readonly_pascal.severity = error
+dotnet_naming_symbols.private_static_readonly.applicable_kinds = field
+dotnet_naming_symbols.private_static_readonly.applicable_accessibilities = private
+dotnet_naming_symbols.private_static_readonly.required_modifiers = static, readonly
+dotnet_naming_style.pascal.capitalization = pascal_case
 dotnet_naming_rule.private_fields_underscore.symbols = private_fields
 dotnet_naming_rule.private_fields_underscore.style = underscore_camel
 dotnet_naming_rule.private_fields_underscore.severity = error

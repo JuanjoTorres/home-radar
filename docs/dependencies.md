@@ -48,7 +48,7 @@ Leyenda «cambio?»: ¿hubo cambio de licencia o aparición de tier comercial en
 | xunit.v3 | 4.0.3 (2026-11-09) | Apache-2.0 | No | **Usar** | https://www.nuget.org/packages/xunit.v3/ |
 | Testcontainers.PostgreSql | 4.16.0 (2026-10-08) | MIT | No | **Usar** | https://www.nuget.org/packages/Testcontainers.PostgreSql |
 | WireMock.Net | 2.31.0 (2026-11-12) | Apache-2.0 | No | **Usar** (mock de portales/HTTP) | https://nuget.org/packages/wiremock.net |
-| Verify.Xunit | 31.12.5 (2026-02-11) — **deprecado/legacy (xunit v2)** | MIT | No | **Alternativa: Verify.XunitV3 33.3.4** (2026-10-16, MIT) | https://www.nuget.org/packages/verify.xunit ; https://nuget.org/packages/Verify.XunitV3/ |
+| Verify.Xunit / Verify.XunitV3 | 33.3.4 | MIT **+ "Maintenance Fee"**: el build falla (SC021) si no se declara sponsor o exención en MSBuild | **Sí (2026)** | **Evitar**: snapshots propios (comprobado al compilar el 2026-11-14) | https://www.nuget.org/packages/verify.xunit ; https://nuget.org/packages/Verify.XunitV3/ |
 | TngTech.ArchUnitNET | 0.13.5 (2026-10-26) | Apache-2.0 | No | **Usar** | https://www.nuget.org/packages/TngTech.ArchUnitNET |
 | NetArchTest.Rules | 1.3.2 (**2021-05-23**, sin actividad) | Sin SPDX en NuGet (repo: MIT) | No | **Evitar** (abandonado) → ArchUnitNET | https://www.nuget.org/packages/NetArchTest.Rules |
 | CsCheck | 5.0.1 (2026-11-03) | Apache-2.0 | No | **Usar** (property testing en C# idiomático) | https://feed.nuget.org/packages/CsCheck/2.0.0 |

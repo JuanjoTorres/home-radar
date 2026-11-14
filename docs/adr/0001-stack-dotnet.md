@@ -25,11 +25,11 @@
 | Mapeo | Mapperly (`Riok.Mapperly`, Apache-2.0) | Sin cambios. |
 | Observabilidad | OpenTelemetry + Serilog (consola JSON; sin CloudWatch) | Sin cambios. |
 | Local | Docker Compose con PostGIS y MinIO | Aspire descartado: añade un dashboard y un orquestador para dos procesos. |
-| Tests | xunit.v3, Testcontainers.PostgreSql, WireMock.Net, **Verify.XunitV3**, **ArchUnitNET**, **CsCheck** | **Cambios:** `Verify.Xunit` está deprecado a favor de `Verify.XunitV3`; `NetArchTest.Rules` lleva sin mantenimiento desde 2021; CsCheck (MIT) en lugar de FsCheck (menos fricción desde C#). Aserciones: **Shouldly** o las de xunit, nunca FluentAssertions v8. Mocks: NSubstitute. |
+| Tests | xunit.v3, Testcontainers.PostgreSql, WireMock.Net, **snapshots propios** (helper de 40 líneas), **ArchUnitNET**, **CsCheck** | **Cambios:** `Verify` 33.x exige desde 2026 una propiedad de licencia/"Maintenance Fee" (SponsorCheck SC021) o declarar una exención; queda fuera por la misma regla que MediatR y se sustituye por un comparador de snapshots propio; `NetArchTest.Rules` lleva sin mantenimiento desde 2021; CsCheck (MIT) en lugar de FsCheck (menos fricción desde C#). Aserciones: **Shouldly** o las de xunit, nunca FluentAssertions v8. Mocks: NSubstitute. |
 | Calidad | `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig`, nullable, `TreatWarningsAsErrors`, analizadores, `dotnet format` en CI | Sin cambios. |
 
 ## Paquetes vetados y por qué
-MediatR y AutoMapper (licencia RPL + comercial desde 2025), MassTransit v9 (comercial), FluentAssertions v8 (Xceed), Moq ≥ 4.20 (SponsorLink), Hangfire (LGPL/Pro), SixLabors.ImageSharp (Split License + clave de build), NetArchTest.Rules (abandonado).
+MediatR y AutoMapper (licencia RPL + comercial desde 2025), MassTransit v9 (comercial), FluentAssertions v8 (Xceed), Moq ≥ 4.20 (SponsorLink), Hangfire (LGPL/Pro), SixLabors.ImageSharp (Split License + clave de build), NetArchTest.Rules (abandonado), **Verify ≥ 33 (Maintenance Fee / SponsorCheck en build, detectado el 2026-11-14 al compilar)**.
 
 ## Consecuencias
 - Cero dependencias con riesgo de licencia; `docs/dependencies.md` se revisa en cada actualización de paquetes (job trimestral en CI que falla si cambia el campo `license` en NuGet).
