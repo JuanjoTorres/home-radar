@@ -7,13 +7,21 @@ sources:
     followFirst:
       name: detail
       pattern: /es/propiedades/comprar/[a-z0-9-]+-[0-9]+-[0-9]+
-  - name: list-newest
-    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?orden=fichaFechaPubComponente&tipoOrden=1
-  - name: list-oldest
-    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?orden=fichaFechaPubComponente&tipoOrden=0
-  - name: list-band-0-150k
-    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?filtro.minPrecio=:ge:0&filtro.maxPrecio=:le:150000
-  - name: list-band-150-250k
-    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?filtro.minPrecio=:ge:150001&filtro.maxPrecio=:le:250000
+  - name: sitemap
+    url: https://www.solvia.es/sitemap.xml
   - name: robots
     url: https://www.solvia.es/robots.txt
+- key: inmovilla-native
+  pages:
+  - name: mir-venta
+    url: https://www.inmobiliariamir.es/venta/es/
+  - name: mir-venta-res48
+    url: https://www.inmobiliariamir.es/index.php?idio=1&res=48
+  - name: mir-venta-pag2
+    url: https://www.inmobiliariamir.es/index.php?idio=1&res=12&pag=2
+  - name: paginacion-js
+    url: https://www.inmobiliariamir.es/js/modulos/paginacion/paginacion.js
+  - name: mir-detail
+    url: https://www.inmobiliariamir.es/ficha/piso/llucmajor/s-arenal/4445/29483722/es/
+  - name: mir-robots
+    url: https://www.inmobiliariamir.es/robots.txt
