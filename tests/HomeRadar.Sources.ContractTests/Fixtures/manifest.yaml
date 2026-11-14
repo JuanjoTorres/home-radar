@@ -7,12 +7,42 @@ sources:
     followFirst:
       name: detail
       pattern: /es/propiedades/comprar/[a-z0-9-]+-[0-9]+-[0-9]+
-  - name: list-balears-pagina2
-    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?pagina=2
-  - name: list-balears-p2
-    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?p=2
-  - name: main-js
-    url: https://www.solvia.es/main.9b3ed4c1a67486ed.js
+  - name: api-search-p1
+    url: https://www.solvia.es/api/inmuebles/v2/buscarInmuebles
+    method: POST
+    headers: &id001
+      x-solv-idioma: '1'
+      x-solv-version: '1'
+      x-solv-tracking: 00000000-0000-4000-8000-000000000001
+      x-solv-client: solvia
+      x-solv-land: ''
+      Origin: https://www.solvia.es
+      Referer: https://www.solvia.es/es/comprar/viviendas/balears-illes
+    body:
+      filtroTipo: COMPRA
+      idProvincia: '7'
+      idCategoriaTipoVivienda: '1'
+      numeroPagina: 1
+      registrosPorPagina: 20
+  - name: api-search-p2
+    url: https://www.solvia.es/api/inmuebles/v2/buscarInmuebles
+    method: POST
+    headers: *id001
+    body:
+      filtroTipo: COMPRA
+      idProvincia: '7'
+      idCategoriaTipoVivienda: '1'
+      numeroPagina: 2
+      registrosPorPagina: 20
+  - name: api-search-nocat
+    url: https://www.solvia.es/api/inmuebles/v2/buscarInmuebles
+    method: POST
+    headers: *id001
+    body:
+      filtroTipo: COMPRA
+      idProvincia: '7'
+      numeroPagina: 1
+      registrosPorPagina: 20
 - key: aliseda
   pages:
   - name: list-balears
@@ -20,17 +50,6 @@ sources:
     followFirst:
       name: detail
       pattern: /inmueble/[A-Za-z0-9]+
-  - name: list-balears-page2
-    url: https://www.alisedainmobiliaria.com/comprar-viviendas/islas-baleares?page=2&sort_by=field_prom_prec&sort_order=ASC
-- key: diglo
-  pages:
-  - name: list-balears
-    url: https://digloservicer.com/venta-activos/cualquiera/islas-baleares
-    followFirst:
-      name: detail
-      pattern: /venta-[a-z]+/islas-baleares/[a-z0-9-]+/[a-z0-9]+
-  - name: list-balears-page1
-    url: https://digloservicer.com/venta-activos/cualquiera/islas-baleares?page=1
 - key: inmovilla-native
   pages:
   - name: mir-venta
@@ -38,19 +57,3 @@ sources:
     followFirst:
       name: mir-detail
       pattern: ficha/[a-z0-9-]+/[a-z0-9-]+/[a-z0-9-]+/[0-9]+/[0-9]+/es/
-  - name: mir-venta-page2
-    url: https://www.inmobiliariamir.es/venta/es/?pagina=2
-  - name: incasa-venta
-    url: https://www.incasaproperties.com/venta/es/
-- key: inmovilla-wordpress
-  pages:
-  - name: lighthouse-list
-    url: https://lighthouse-living.com/propiedades/
-    followFirst:
-      name: lighthouse-detail
-      pattern: /propiedad/[a-z0-9-]+-[0-9]{8}/
-  - name: fiol-list
-    url: https://fincasfiol.com/propiedades/
-    followFirst:
-      name: fiol-detail
-      pattern: /propiedad/[a-z0-9-]+-[0-9]{8}/

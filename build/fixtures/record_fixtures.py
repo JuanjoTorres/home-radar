@@ -41,8 +41,14 @@ def robots_allows(url: str, cache: dict[str, urllib.robotparser.RobotFileParser]
     return parser.can_fetch(USER_AGENT, url)
 
 
-def fetch(url: str) -> tuple[int, dict[str, str], bytes, str]:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml", "Accept-Language": "es-ES,es;q=0.9"})
+def fetch(url: str, method: str = "GET", body: dict | None = None, headers: dict[str, str] | None = None) -> tuple[int, dict[str, str], bytes, str]:
+    request_headers = {"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml,application/json", "Accept-Language": "es-ES,es;q=0.9"}
+    request_headers.update(headers or {})
+    data = None
+    if body is not None:
+        data = json.dumps(body).encode("utf-8")
+        request_headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(url, data=data, method=method, headers=request_headers)
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
             return response.status, dict(response.headers.items()), response.read(), response.geturl()
@@ -52,7 +58,8 @@ def fetch(url: str) -> tuple[int, dict[str, str], bytes, str]:
 
 def save(target_dir: Path, name: str, url: str, status: int, headers: dict[str, str], body: bytes, final_url: str) -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
-    (target_dir / f"{name}.html").write_bytes(body)
+    extension = "json" if body[:1] in (b"{", b"[") else "html"
+    (target_dir / f"{name}.{extension}").write_bytes(body)
     meta = {
         "url": url,
         "finalUrl": final_url,
@@ -87,7 +94,7 @@ def main(manifest_path: str, root: str, only: str | None) -> int:
                 print(f"[{source['key']}] robots.txt disallows {url}; skipped", flush=True)
                 save(target_dir, page["name"], url, 0, {}, b"", url)
                 continue
-            status, headers, body, final_url = fetch(url)
+            status, headers, body, final_url = fetch(url, page.get("method", "GET"), page.get("body"), page.get("headers"))
             print(f"[{source['key']}] {page['name']}: {status} {len(body)} bytes", flush=True)
             save(target_dir, page["name"], url, status, headers, body, final_url)
             if status >= 400:
