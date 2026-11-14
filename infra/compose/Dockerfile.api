@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY Directory.Build.props Directory.Packages.props global.json nuget.config ./
+COPY .editorconfig Directory.Build.props Directory.Packages.props global.json nuget.config ./
 COPY src/HomeRadar.Domain/HomeRadar.Domain.csproj src/HomeRadar.Domain/
 COPY src/HomeRadar.Application/HomeRadar.Application.csproj src/HomeRadar.Application/
 COPY src/HomeRadar.Infrastructure/HomeRadar.Infrastructure.csproj src/HomeRadar.Infrastructure/
