@@ -1,0 +1,188 @@
+using System.Linq.Expressions;
+using HomeRadar.Domain.Listings;
+using HomeRadar.Domain.Profiles;
+using HomeRadar.Domain.ValueObjects;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.IO;
+
+namespace HomeRadar.Application.Search;
+
+/// <summary>
+/// Translates a <see cref="ListingFilter"/> into one expression that EF Core compiles to SQL for searches
+/// and that is compiled in memory to decide whether a freshly ingested listing matches a saved search.
+/// Both paths must agree; <c>ListingFilterSpecificationTests</c> enforces it.
+/// </summary>
+public static class ListingFilterSpecification
+{
+    private static readonly WKTReader WktReader = new();
+
+    public static Expression<Func<Listing, bool>> Build(ListingFilter filter, DateTimeOffset now)
+    {
+        var predicate = PredicateComposer.True<Listing>();
+
+        if (filter.Statuses.Count > 0)
+        {
+            var statuses = filter.Statuses.ToList();
+            predicate = predicate.And(l => statuses.Contains(l.Status));
+        }
+
+        if (filter.PriceMin is { } priceMin)
+        {
+            predicate = predicate.And(l => l.Price != null && l.Price.Value.Amount >= priceMin);
+        }
+
+        if (filter.PriceMax is { } priceMax)
+        {
+            predicate = predicate.And(l => l.Price != null && l.Price.Value.Amount <= priceMax);
+        }
+
+        if (filter.PricePerM2Min is { } ppm2Min)
+        {
+            predicate = predicate.And(l => l.Price != null && l.BuiltArea != null && l.BuiltArea.Value.SquareMetres > 0 && l.Price.Value.Amount / l.BuiltArea.Value.SquareMetres >= ppm2Min);
+        }
+
+        if (filter.PricePerM2Max is { } ppm2Max)
+        {
+            predicate = predicate.And(l => l.Price != null && l.BuiltArea != null && l.BuiltArea.Value.SquareMetres > 0 && l.Price.Value.Amount / l.BuiltArea.Value.SquareMetres <= ppm2Max);
+        }
+
+        if (filter.BuiltM2Min is { } m2Min)
+        {
+            predicate = predicate.And(l => l.BuiltArea != null && l.BuiltArea.Value.SquareMetres >= m2Min);
+        }
+
+        if (filter.BuiltM2Max is { } m2Max)
+        {
+            predicate = predicate.And(l => l.BuiltArea != null && l.BuiltArea.Value.SquareMetres <= m2Max);
+        }
+
+        if (filter.RoomsMin is { } roomsMin)
+        {
+            predicate = predicate.And(l => l.Rooms != null && l.Rooms >= roomsMin);
+        }
+
+        if (filter.RoomsMax is { } roomsMax)
+        {
+            predicate = predicate.And(l => l.Rooms != null && l.Rooms <= roomsMax);
+        }
+
+        if (filter.BathroomsMin is { } bathroomsMin)
+        {
+            predicate = predicate.And(l => l.Bathrooms != null && l.Bathrooms >= bathroomsMin);
+        }
+
+        if (filter.PropertyTypes.Count > 0)
+        {
+            var types = filter.PropertyTypes.ToList();
+            predicate = predicate.And(l => types.Contains(l.PropertyType));
+        }
+
+        if (filter.Municipalities.Count > 0)
+        {
+            var municipalities = filter.Municipalities.Select(Normalize).ToList();
+            predicate = predicate.And(l => l.Municipality != null && municipalities.Contains(l.Municipality.ToLower()));
+        }
+
+        if (filter.PolygonWkt is { Length: > 0 } wkt)
+        {
+            var polygon = WktReader.Read(wkt);
+            polygon.SRID = UtmProjection.Wgs84Srid;
+            predicate = predicate.And(l => l.Location != null && l.Location.Within(polygon));
+        }
+
+        if (filter.Radius is { } radius)
+        {
+            var (easting, northing) = UtmProjection.ToUtm31N(radius.Latitude, radius.Longitude);
+            var centre = new Point(easting, northing) { SRID = UtmProjection.Utm31NSrid };
+            double metres = radius.Metres;
+            predicate = predicate.And(l => l.LocationUtm != null && l.LocationUtm.Distance(centre) <= metres);
+        }
+
+        if (filter.SellerTypes.Count > 0)
+        {
+            var sellerTypes = filter.SellerTypes.ToList();
+            predicate = predicate.And(l => sellerTypes.Contains(l.SellerType));
+        }
+
+        if (filter.SourceKeys.Count > 0)
+        {
+            var keys = filter.SourceKeys.ToList();
+            predicate = predicate.And(l => keys.Contains(l.SourceKey));
+        }
+
+        if (filter.AgencyIds.Count > 0)
+        {
+            var agencies = filter.AgencyIds.ToList();
+            predicate = predicate.And(l => l.AgencyId != null && agencies.Contains(l.AgencyId.Value));
+        }
+
+        if (filter.YearBuiltMin is { } yearMin)
+        {
+            predicate = predicate.And(l => l.YearBuilt != null && l.YearBuilt >= yearMin);
+        }
+
+        if (filter.YearBuiltMax is { } yearMax)
+        {
+            predicate = predicate.And(l => l.YearBuilt != null && l.YearBuilt <= yearMax);
+        }
+
+        if (filter.DaysOnMarketMin is { } domMin)
+        {
+            var threshold = now.AddDays(-domMin);
+            predicate = predicate.And(l => (l.PublishedAt ?? l.FirstSeenAt) <= threshold);
+        }
+
+        if (filter.DaysOnMarketMax is { } domMax)
+        {
+            var threshold = now.AddDays(-domMax);
+            predicate = predicate.And(l => (l.PublishedAt ?? l.FirstSeenAt) >= threshold);
+        }
+
+        if (filter.PriceDropsMin is { } dropsMin)
+        {
+            predicate = predicate.And(l => l.PriceDropCount >= dropsMin);
+        }
+
+        if (filter.CumulativeDropPercentMin is { } cumulativeMin)
+        {
+            predicate = predicate.And(l => l.InitialPrice != null && l.Price != null && l.InitialPrice.Value.Amount > 0
+                && (l.InitialPrice.Value.Amount - l.Price.Value.Amount) / l.InitialPrice.Value.Amount * 100m >= cumulativeMin);
+        }
+
+        if (filter.NewWithinHours is { } hours)
+        {
+            var since = now.AddHours(-hours);
+            predicate = predicate.And(l => l.FirstSeenAt >= since);
+        }
+
+        if (filter.ExcludePossession.Count > 0)
+        {
+            var excluded = filter.ExcludePossession.ToList();
+            predicate = predicate.And(l => !excluded.Contains(l.Possession));
+        }
+
+        if (filter.Elevator is { } elevator)
+        {
+            predicate = predicate.And(l => l.HasElevator == elevator);
+        }
+
+        if (filter.Terrace is { } terrace)
+        {
+            predicate = predicate.And(l => l.HasTerrace == terrace);
+        }
+
+        if (filter.Parking is { } parking)
+        {
+            predicate = predicate.And(l => l.HasParking == parking);
+        }
+
+        if (!filter.IncludeNewBuild)
+        {
+            predicate = predicate.And(l => !l.IsNewBuild);
+        }
+
+        return predicate;
+    }
+
+    private static string Normalize(string municipality) => municipality.Trim().ToLowerInvariant();
+}

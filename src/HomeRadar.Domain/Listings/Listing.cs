@@ -8,14 +8,17 @@ public sealed class Listing : Entity
 {
     private readonly List<ListingPhoto> _photos = [];
     private Dictionary<string, string> _features = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _enrichments = new(StringComparer.Ordinal);
 
     private Listing()
     {
     }
 
-    private Listing(Guid sourceId, ListingObservation observation, DateTimeOffset now)
+    private Listing(Guid sourceId, string sourceKey, SellerType sellerType, ListingObservation observation, DateTimeOffset now)
     {
         SourceId = sourceId;
+        SourceKey = sourceKey;
+        SellerType = sellerType;
         ExternalId = observation.ExternalId;
         FirstSeenAt = now;
         LastSeenAt = now;
@@ -27,6 +30,10 @@ public sealed class Listing : Entity
     }
 
     public Guid SourceId { get; private init; }
+
+    public string SourceKey { get; private init; } = string.Empty;
+
+    public SellerType SellerType { get; private init; }
 
     public Guid? AgencyId { get; private set; }
 
@@ -56,9 +63,23 @@ public sealed class Listing : Entity
 
     public Point? Location { get; private set; }
 
+    public Point? LocationUtm { get; private set; }
+
     public string? Description { get; private set; }
 
     public IReadOnlyDictionary<string, string> Features => _features;
+
+    public IReadOnlyDictionary<string, string> Enrichments => _enrichments;
+
+    public bool? HasElevator { get; private set; }
+
+    public bool? HasTerrace { get; private set; }
+
+    public bool? HasParking { get; private set; }
+
+    public int? YearBuilt { get; private set; }
+
+    public bool IsNewBuild { get; private set; }
 
     public IReadOnlyList<ListingPhoto> Photos => _photos;
 
@@ -90,9 +111,9 @@ public sealed class Listing : Entity
             ? Math.Round((initial.Amount - current.Amount) / initial.Amount * 100m, 2, MidpointRounding.ToEven)
             : 0m;
 
-    public static Listing Create(Guid sourceId, ListingObservation observation, DateTimeOffset now)
+    public static Listing Create(Guid sourceId, string sourceKey, SellerType sellerType, ListingObservation observation, DateTimeOffset now)
     {
-        var listing = new Listing(sourceId, observation, now)
+        var listing = new Listing(sourceId, sourceKey, sellerType, observation, now)
         {
             InitialPrice = observation.Price,
         };
@@ -146,6 +167,14 @@ public sealed class Listing : Entity
     }
 
     public void AssignDwelling(Guid dwellingId) => DwellingId = dwellingId;
+
+    public void ApplyEnrichment(IEnumerable<KeyValuePair<string, string>> facts)
+    {
+        foreach (var fact in facts)
+        {
+            _enrichments[fact.Key] = fact.Value;
+        }
+    }
 
     public void SetPhotoHash(Uri url, ulong hash) => _photos.Find(photo => photo.Url == url)?.SetPerceptualHash(hash);
 
@@ -278,13 +307,22 @@ public sealed class Listing : Entity
         Municipality = observation.Municipality;
         Zone = observation.Zone;
         Location = observation.Location;
+        LocationUtm = observation.Location is null ? null : UtmProjection.ToUtm31N(observation.Location);
         Description = observation.Description;
         CadastralReference = observation.CadastralReference;
         PublishedAt ??= observation.PublishedAt;
         AgencyId = observation.AgencyId;
         _features = new Dictionary<string, string>(observation.Features, StringComparer.Ordinal);
+        HasElevator = FeatureFlag(FeatureKeys.Elevator);
+        HasTerrace = FeatureFlag(FeatureKeys.Terrace);
+        HasParking = FeatureFlag(FeatureKeys.Parking);
+        YearBuilt = _features.TryGetValue(FeatureKeys.YearBuilt, out var year) && int.TryParse(year, out var parsed) ? parsed : null;
+        IsNewBuild = FeatureFlag(FeatureKeys.NewBuild) == true;
         SyncPhotos(observation.PhotoUrls);
     }
+
+    private bool? FeatureFlag(string key) =>
+        _features.TryGetValue(key, out var value) ? string.Equals(value, "true", StringComparison.OrdinalIgnoreCase) : null;
 
     private void SyncPhotos(IReadOnlyList<Uri> urls)
     {

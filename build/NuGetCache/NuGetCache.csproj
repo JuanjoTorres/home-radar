@@ -58,5 +58,6 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" />
+    <PackageDownload Include="dotnet-ef" Version="[10.0.4]" />
   </ItemGroup>
 </Project>

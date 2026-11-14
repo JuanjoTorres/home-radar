@@ -33,3 +33,18 @@ public sealed class MoneyTests
         CadastralReference.TryParse("not-a-reference", out _).ShouldBeFalse();
     }
 }
+
+public sealed class UtmProjectionTests
+{
+    [Theory]
+    [InlineData(39.5674, 2.6480, 469764.60, 4379803.81)]
+    [InlineData(39.7, 2.9, 491426.79, 4394465.80)]
+    [InlineData(39.9, 3.1, 508548.41, 4416663.08)]
+    public void Matches_epsg25831_reference_values_within_ten_centimetres(double latitude, double longitude, double expectedEasting, double expectedNorthing)
+    {
+        var (easting, northing) = HomeRadar.Domain.ValueObjects.UtmProjection.ToUtm31N(latitude, longitude);
+
+        easting.ShouldBe(expectedEasting, 0.1);
+        northing.ShouldBe(expectedNorthing, 0.1);
+    }
+}
