@@ -1,0 +1,12 @@
+{
+  "url": "https://www.solvia.es/es/comprar/viviendas/balears-illes?filtro.minPrecio=:ge:150001&filtro.maxPrecio=:le:250000",
+  "finalUrl": "https://www.solvia.es/es/comprar/viviendas/balears-illes?filtro.minPrecio=:ge:150001&filtro.maxPrecio=:le:250000",
+  "status": 200,
+  "recordedAt": "2026-11-14T20:02:55.381373+00:00",
+  "contentType": "text/html; charset=utf-8",
+  "etag": null,
+  "lastModified": null,
+  "cacheControl": null,
+  "server": "cloudflare",
+  "bytes": 1208050
+}
