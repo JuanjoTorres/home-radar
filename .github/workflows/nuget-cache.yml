@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - Directory.Packages.props
+      - '**/*.csproj'
       - build/NuGetCache/**
       - .github/workflows/nuget-cache.yml
 
@@ -21,7 +22,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Restore every package into an isolated folder
-        run: dotnet restore build/NuGetCache/NuGetCache.csproj --packages nuget-packages
+        run: |
+          dotnet restore build/NuGetCache/NuGetCache.csproj --packages nuget-packages
+          dotnet restore HomeRadar.slnx --packages nuget-packages
       - name: Pack the cache
         run: tar -C nuget-packages -czf nuget-cache-linux.tgz . && ls -lh nuget-cache-linux.tgz
       - name: Publish as release asset

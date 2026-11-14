@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY Directory.Build.props Directory.Packages.props global.json nuget.config ./
+COPY src/HomeRadar.Domain/HomeRadar.Domain.csproj src/HomeRadar.Domain/
+COPY src/HomeRadar.Application/HomeRadar.Application.csproj src/HomeRadar.Application/
+COPY src/HomeRadar.Infrastructure/HomeRadar.Infrastructure.csproj src/HomeRadar.Infrastructure/
+COPY src/HomeRadar.Sources/HomeRadar.Sources.csproj src/HomeRadar.Sources/
+COPY src/HomeRadar.Worker/HomeRadar.Worker.csproj src/HomeRadar.Worker/
+RUN dotnet restore src/HomeRadar.Worker/HomeRadar.Worker.csproj
+COPY src/ src/
+RUN dotnet publish src/HomeRadar.Worker/HomeRadar.Worker.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/playwright/dotnet:v1.64.1-noble
+WORKDIR /app
+COPY --from=build /app .
+ENTRYPOINT ["dotnet", "HomeRadar.Worker.dll"]

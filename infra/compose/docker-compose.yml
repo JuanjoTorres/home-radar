@@ -1,0 +1,64 @@
+services:
+  postgis:
+    image: postgis/postgis:16-3.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-homeradar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-homeradar}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-homeradar}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  api:
+    image: ghcr.io/juanjotorres/home-radar-api:${HOMERADAR_VERSION:-latest}
+    build:
+      context: ../..
+      dockerfile: infra/compose/Dockerfile.api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ConnectionStrings__HomeRadar: Host=postgis;Username=${POSTGRES_USER:-homeradar};Password=${POSTGRES_PASSWORD};Database=${POSTGRES_DB:-homeradar}
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+    depends_on:
+      postgis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  worker:
+    image: ghcr.io/juanjotorres/home-radar-worker:${HOMERADAR_VERSION:-latest}
+    build:
+      context: ../..
+      dockerfile: infra/compose/Dockerfile.worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ConnectionStrings__HomeRadar: Host=postgis;Username=${POSTGRES_USER:-homeradar};Password=${POSTGRES_PASSWORD};Database=${POSTGRES_DB:-homeradar}
+    depends_on:
+      postgis:
+        condition: service_healthy
+    shm_size: 1g
+
+  minio:
+    image: minio/minio:latest
+    profiles: ["local"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-homeradar}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-homeradar-local}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+
+volumes:
+  pgdata:
+  miniodata:

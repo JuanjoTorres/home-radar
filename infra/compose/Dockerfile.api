@@ -1,0 +1,18 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY Directory.Build.props Directory.Packages.props global.json nuget.config ./
+COPY src/HomeRadar.Domain/HomeRadar.Domain.csproj src/HomeRadar.Domain/
+COPY src/HomeRadar.Application/HomeRadar.Application.csproj src/HomeRadar.Application/
+COPY src/HomeRadar.Infrastructure/HomeRadar.Infrastructure.csproj src/HomeRadar.Infrastructure/
+COPY src/HomeRadar.Sources/HomeRadar.Sources.csproj src/HomeRadar.Sources/
+COPY src/HomeRadar.Api/HomeRadar.Api.csproj src/HomeRadar.Api/
+RUN dotnet restore src/HomeRadar.Api/HomeRadar.Api.csproj
+COPY src/ src/
+RUN dotnet publish src/HomeRadar.Api/HomeRadar.Api.csproj -c Release -o /app --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /app .
+USER $APP_UID
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "HomeRadar.Api.dll"]

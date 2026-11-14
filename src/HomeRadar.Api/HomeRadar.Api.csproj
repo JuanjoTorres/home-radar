@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <UserSecretsId>homeradar-api</UserSecretsId>
+    <OpenApiDocumentsDirectory>$(MSBuildThisFileDirectory)..\..\docs\api\generated</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOnBuild Condition="'$(GenerateOpenApi)' == 'true'">true</OpenApiGenerateDocumentsOnBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HomeRadar.Application\HomeRadar.Application.csproj" />
+    <ProjectReference Include="..\HomeRadar.Infrastructure\HomeRadar.Infrastructure.csproj" />
+    <ProjectReference Include="..\HomeRadar.Sources\HomeRadar.Sources.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Asp.Versioning.Http" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Formatting.Compact" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Docs\Endpoints\*.md" />
+  </ItemGroup>
+</Project>

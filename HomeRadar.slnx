@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HomeRadar.Api/HomeRadar.Api.csproj" />
+    <Project Path="src/HomeRadar.Application/HomeRadar.Application.csproj" />
+    <Project Path="src/HomeRadar.Domain/HomeRadar.Domain.csproj" />
+    <Project Path="src/HomeRadar.Infrastructure/HomeRadar.Infrastructure.csproj" />
+    <Project Path="src/HomeRadar.Sources/HomeRadar.Sources.csproj" />
+    <Project Path="src/HomeRadar.Worker/HomeRadar.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HomeRadar.Api.IntegrationTests/HomeRadar.Api.IntegrationTests.csproj" />
+    <Project Path="tests/HomeRadar.Application.Tests/HomeRadar.Application.Tests.csproj" />
+    <Project Path="tests/HomeRadar.ArchitectureTests/HomeRadar.ArchitectureTests.csproj" />
+    <Project Path="tests/HomeRadar.Domain.Tests/HomeRadar.Domain.Tests.csproj" />
+    <Project Path="tests/HomeRadar.Sources.ContractTests/HomeRadar.Sources.ContractTests.csproj" />
+  </Folder>
+</Solution>
