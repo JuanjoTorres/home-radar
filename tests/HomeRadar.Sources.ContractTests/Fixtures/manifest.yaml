@@ -7,53 +7,13 @@ sources:
     followFirst:
       name: detail
       pattern: /es/propiedades/comprar/[a-z0-9-]+-[0-9]+-[0-9]+
-  - name: api-search-p1
-    url: https://www.solvia.es/api/inmuebles/v2/buscarInmuebles
-    method: POST
-    headers: &id001
-      x-solv-idioma: '1'
-      x-solv-version: '1'
-      x-solv-tracking: 00000000-0000-4000-8000-000000000001
-      x-solv-client: solvia
-      x-solv-land: ''
-      Origin: https://www.solvia.es
-      Referer: https://www.solvia.es/es/comprar/viviendas/balears-illes
-    body:
-      filtroTipo: COMPRA
-      idProvincia: '7'
-      idCategoriaTipoVivienda: '1'
-      numeroPagina: 1
-      registrosPorPagina: 20
-  - name: api-search-p2
-    url: https://www.solvia.es/api/inmuebles/v2/buscarInmuebles
-    method: POST
-    headers: *id001
-    body:
-      filtroTipo: COMPRA
-      idProvincia: '7'
-      idCategoriaTipoVivienda: '1'
-      numeroPagina: 2
-      registrosPorPagina: 20
-  - name: api-search-nocat
-    url: https://www.solvia.es/api/inmuebles/v2/buscarInmuebles
-    method: POST
-    headers: *id001
-    body:
-      filtroTipo: COMPRA
-      idProvincia: '7'
-      numeroPagina: 1
-      registrosPorPagina: 20
-- key: aliseda
-  pages:
-  - name: list-balears
-    url: https://www.alisedainmobiliaria.com/comprar-viviendas/islas-baleares?page=1&sort_by=field_prom_prec&sort_order=ASC
-    followFirst:
-      name: detail
-      pattern: /inmueble/[A-Za-z0-9]+
-- key: inmovilla-native
-  pages:
-  - name: mir-venta
-    url: https://www.inmobiliariamir.es/venta/es/
-    followFirst:
-      name: mir-detail
-      pattern: ficha/[a-z0-9-]+/[a-z0-9-]+/[a-z0-9-]+/[0-9]+/[0-9]+/es/
+  - name: list-newest
+    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?orden=fichaFechaPubComponente&tipoOrden=1
+  - name: list-oldest
+    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?orden=fichaFechaPubComponente&tipoOrden=0
+  - name: list-band-0-150k
+    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?filtro.minPrecio=:ge:0&filtro.maxPrecio=:le:150000
+  - name: list-band-150-250k
+    url: https://www.solvia.es/es/comprar/viviendas/balears-illes?filtro.minPrecio=:ge:150001&filtro.maxPrecio=:le:250000
+  - name: robots
+    url: https://www.solvia.es/robots.txt
