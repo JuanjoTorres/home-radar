@@ -18,9 +18,9 @@ public sealed class HomeRadarStackProps : StackProps
 /// moves old objects to cheaper classes, one least-privilege IAM user for the VPS, and a cost budget with e-mail alerts.
 /// Compute runs on a VPS and is deployed with Docker Compose, not with CDK.
 /// </summary>
-public sealed class HomeRadarStack : Stack
+public sealed class HomeRadarResources : Stack
 {
-    public HomeRadarStack(Construct scope, string id, HomeRadarStackProps props)
+    public HomeRadarResources(Construct scope, string id, HomeRadarStackProps props)
         : base(scope, id, props)
     {
         var bucket = new Bucket(this, "Storage", new BucketProps
@@ -85,11 +85,11 @@ public sealed class HomeRadarStack : Stack
                     TimeUnit = "MONTHLY",
                     BudgetLimit = new CfnBudget.SpendProperty { Amount = props.MonthlyBudgetUsd, Unit = "USD" },
                 },
-                NotificationsWithSubscribers =
-                [
+                NotificationsWithSubscribers = new[]
+                {
                     Alert(60, props.BudgetEmail),
                     Alert(100, props.BudgetEmail),
-                ],
+                },
             });
         }
 
@@ -106,6 +106,6 @@ public sealed class HomeRadarStack : Stack
             Threshold = thresholdPercent,
             ThresholdType = "PERCENTAGE",
         },
-        Subscribers = [new CfnBudget.SubscriberProperty { SubscriptionType = "EMAIL", Address = email }],
+        Subscribers = new[] { new CfnBudget.SubscriberProperty { SubscriptionType = "EMAIL", Address = email } },
     };
 }

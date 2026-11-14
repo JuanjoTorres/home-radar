@@ -2,7 +2,7 @@ using Amazon.CDK;
 using HomeRadar.Cdk;
 
 var app = new App();
-_ = new HomeRadarStack(app, "HomeRadar", new HomeRadarStackProps
+_ = new HomeRadarResources(app, "HomeRadar", new HomeRadarStackProps
 {
     Env = new Amazon.CDK.Environment
     {
