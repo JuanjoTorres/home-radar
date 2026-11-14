@@ -8,3 +8,7 @@ Target: one Linux VPS (ADR-0002) running three containers: `postgis`, `api`, `wo
 4. `docker compose up -d` — the worker applies migrations and seeds on start; the API listens on `127.0.0.1:8080`. Put Caddy or nginx in front for TLS if the API must be reachable from outside; otherwise use an SSH tunnel.
 5. Backups: `crontab` the `backup.sh` script (nightly `pg_dump` to S3, lifecycle rules move old dumps to cheaper classes).
 6. Updates: push a tag `vX.Y.Z` — the `deploy` workflow builds multi-arch images, pushes them to GHCR and restarts the stack over SSH.
+
+## Local run (Docker Desktop)
+
+From `infra/compose`: copy `.env.example` to `.env`, set `POSTGRES_PASSWORD` and `HomeRadar__ApiKey`, then `docker compose up -d --build`. The worker reads seeds from `config/seed` of the repo (override with `HOMERADAR_SEED_DIR`). API: http://localhost:8080/scalar. Logs: `docker compose logs -f worker`. Reset: `docker compose down -v`.

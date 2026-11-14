@@ -41,6 +41,9 @@ services:
     env_file: .env
     environment:
       ConnectionStrings__HomeRadar: Host=postgis;Username=${POSTGRES_USER:-homeradar};Password=${POSTGRES_PASSWORD};Database=${POSTGRES_DB:-homeradar}
+      Seed__Directory: /app/config/seed
+    volumes:
+      - ${HOMERADAR_SEED_DIR:-../../config/seed}:/app/config/seed:ro
     depends_on:
       postgis:
         condition: service_healthy
