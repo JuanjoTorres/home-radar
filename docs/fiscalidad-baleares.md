@@ -3,6 +3,7 @@
 **Fecha de verificación: 14 de noviembre de 2026.**
 
 **Historial de verificación:**
+- 15/11/2026 (fase 2): art. 91.Uno.1.7.º y 91.Dos.1.6.º LIVA (10 % / 4 %) confirmados con el texto que reproduce una consulta de la DGT de 2017 (<https://legado.elnotario.es/images/pdf/DGT-N76-05-2180-2017.pdf>); euríbor de octubre de 2026 (3,239 %) confirmado en la nota del Banco de España (<https://www.bde.es/f/webbe/GAP/Secciones/SalaPrensa/NotasInformativas/26/presbe2026-104.pdf>). Las cifras de este documento se cargan en `config/seed/tax-rules/*.yaml`.
 - 14/11/2026 (2.ª pasada, verificación online): confirmados con fuente primaria los límites por isla (Orden 5/2026 y 13/2026 vía BOIB/eBOIB), la DA 5.ª del TR (BOE consolidado), los aranceles notarial y registral (BOE consolidado), la adenda ICO (BOE-A-2026-14404), el IPREM 2026, el aval IBAVI "Nova Hipoteca Jove" (caib.es) y la ayuda directa de 10.000 € (Orden 21/2026, BOIB núm. 89). Sección 7 reducida a lo que sigue abierto.
 - 14/11/2026 (1.ª pasada): redacción inicial.
 
@@ -705,10 +706,10 @@ Estado tras la verificación online del 14/11/2026. Resuelto y retirado de esta 
 1. **Tratamiento del exceso entre 270.151,20 € y el límite insular con la bonificación del 100 %** (art. 14 quater): la DA 5.ª.2 (verificada) solo dice que la bonificación cubre los primeros 270.151,20 €; el 8 % sobre el exceso es deducción propia (art. 10 d) 1.º + DA 5.ª.2.a), compartida por hipotecas.me, pero **sin criterio publicado de la ATIB ni consulta vinculante** (la consulta Consell Fiscal 8/2025 no lo trata). Acción: consulta a la ATIB o al Consell Fiscal antes de producción.
 2. **Reducción notarial del 10 % (RDL 6/2000)**: citada por fuentes secundarias, pero **no figura** en el texto consolidado del RD 1426/1989 (que solo recoge el 5 % y el 25 %/50 %). No se aplica en el motor hasta confirmar su vigencia y encaje.
 3. **Máximo registral 2.181,67 €**: el texto consolidado lo formula como tope del "arancel global" del número 2 en el contexto de subrogaciones/novaciones/cancelaciones; no es seguro que opere como tope general por finca en compraventas. Además hay un **proyecto de RD 2026** que modifica el número 4 (nota simple telemática 9,02 €); vigilar su publicación en BOE.
-4. **Art. 91 LIVA (10 % / 4 %)** y **Ley 5/2019 (reparto de gastos hipotecarios)**: URLs estables, no reabiertas.
+4. **Ley 5/2019 (reparto de gastos hipotecarios)**: URL estable, no reabierta. (Art. 91 LIVA verificado el 15/11/2026.)
 5. **IBAVI "Nova Hipoteca Jove"**: pendientes la **compatibilidad con el aval ICO** (ninguna de las dos normas la regula; prensa dice que no se acumulan en la misma operación), la **lista oficial de entidades adheridas** (la web no la publica) y el texto de las bases en BOIB núm. 162/2022, 164/2024 y 24/2025 (no abiertos). ISBA no aparece en ninguna fuente: se da por no participante.
 6. **Aval ICO**: los multiplicadores por provincia (7,5 × IPREM para Illes Balears) proceden de la nota ICO de 24/06/2026; la adenda BOE solo fija el techo de 7,5 × y remite a la Comisión de Seguimiento. El acuerdo de la Comisión no se ha localizado. Los porcentajes 20 %/25 % no están en la adenda (sí en ICO).
 7. **IPREM 2026**: verificado vía OCU (prórroga PGE 2023); no se ha abierto el BOE de la Ley 31/2022 para citar la DA literal.
 8. **Rangos de gestoría (300–500 €) y tasación (300–600 €)**: estimaciones de mercado sin fuente primaria.
-9. **Euríbor**: valor BdE de octubre 2026 (3,239 %) citado de la nota de prensa; comprobar su publicación en el BOE y la serie be1901.csv antes de fijarlo como tipo de referencia.
+9. **Euríbor**: valor BdE de octubre 2026 (3,239 %) confirmado el 15/11/2026 en la nota del Banco de España; falta automatizar su actualización mensual (serie be1901.csv), propuesto para la fase 3.
 10. **Ayuda directa 10.000 € (Orden 21/2026)**: aprobada y verificada, pero **sujeta a crédito** (6 M€ ≈ 600 ayudas, por orden de presentación); no se ha encontrado dato oficial del crédito ya consumido a 14/11/2026. El motor debe mostrarla como condicional.
