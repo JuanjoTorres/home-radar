@@ -1,0 +1,26 @@
+{
+  "municipalities": [
+    "Inca",
+    "Sineu",
+    "Santa Maria del Camí"
+  ],
+  "price": {
+    "min": null,
+    "max": 290000
+  },
+  "rooms": {
+    "min": 2,
+    "max": null
+  },
+  "excludePossession": [
+    "NoPossession"
+  ],
+  "newWithinHours": 72,
+  "affordability": {
+    "financingProfileId": "01a1dd61-0c4d-7e88-a3f2-6b1e2d9c7f40",
+    "minimumVerdict": "Affordable",
+    "includeGuarantees": true
+  },
+  "sort": "PriceAsc",
+  "limit": 25
+}

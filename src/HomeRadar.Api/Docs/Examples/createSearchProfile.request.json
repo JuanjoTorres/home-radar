@@ -1,0 +1,27 @@
+{
+  "key": "pla-asequible",
+  "name": "Pla de Mallorca, lo que puedo pagar",
+  "filter": {
+    "municipalities": [
+      "Inca",
+      "Sineu",
+      "Llubí",
+      "Sencelles"
+    ],
+    "rooms": {
+      "min": 2,
+      "max": null
+    },
+    "excludePossession": [
+      "NoPossession"
+    ],
+    "affordability": {
+      "financingProfileId": "01a1dd61-0c4d-7e88-a3f2-6b1e2d9c7f40"
+    }
+  },
+  "channels": [
+    "Telegram"
+  ],
+  "priority": true,
+  "enabled": true
+}

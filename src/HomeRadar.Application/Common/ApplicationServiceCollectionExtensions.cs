@@ -1,3 +1,4 @@
+using HomeRadar.Application.Analysis;
 using HomeRadar.Application.Ingestion;
 using HomeRadar.Application.Notifications;
 using HomeRadar.Application.Outbox;
@@ -12,6 +13,7 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddScoped<IIngestionStage, ChangeDetectionStage>();
         services.AddScoped<IIngestionStage, EnrichmentStage>();
+        services.AddScoped<IIngestionStage, AnalysisStage>();
         services.AddScoped<IIngestionStage, MatchStage>();
         services.AddScoped<IIngestionStage, NotifyStage>();
         services.AddScoped<SourceIngestionService>();
@@ -21,6 +23,9 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<IOutboxHandler, SourceHealthHandler>();
         services.AddScoped<IOutboxHandler, ListingEventWebhookHandler>();
         services.AddScoped<SeedService>();
+        services.AddScoped<FinanceConfigurationLoader>();
+        services.AddScoped<AnalysisService>();
+        services.AddScoped<AffordabilityLimitResolver>();
         return services;
     }
 }

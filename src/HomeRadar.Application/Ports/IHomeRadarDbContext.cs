@@ -1,4 +1,5 @@
 using HomeRadar.Domain.Configuration;
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Outbox;
 using HomeRadar.Domain.Profiles;
@@ -39,6 +40,10 @@ public interface IHomeRadarDbContext
     DbSet<IdempotencyRecord> IdempotencyRecords { get; }
 
     DbSet<BusinessConfigVersion> BusinessConfigVersions { get; }
+
+    DbSet<TaxRuleSet> TaxRuleSets { get; }
+
+    DbSet<ListingAnalysis> ListingAnalyses { get; }
 
     /// <summary>Persists tracked changes and the domain events raised since the last save, atomically.</summary>
     /// <returns>The number of state entries written.</returns>

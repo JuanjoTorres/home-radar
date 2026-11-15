@@ -1,6 +1,7 @@
 using HomeRadar.Api.Contracts;
 using HomeRadar.Api.Infrastructure;
 using HomeRadar.Application.Ports;
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Profiles;
 using HomeRadar.Domain.ValueObjects;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -233,6 +234,16 @@ public static class ProfileEndpoints
         if (input.Buyer.Age is < 18 or > 99)
         {
             errors["buyer.age"] = ["Must be between 18 and 99."];
+        }
+
+        if (input.Buyer.BuyerCount is < 1 or > 2)
+        {
+            errors["buyer.buyerCount"] = ["Must be 1 or 2."];
+        }
+
+        if (MortgageCalculator.Validate(input.Mortgage.ToDomainOrNull() ?? new MortgageTerms(MortgageType.Fixed, 0.8m, 0m, null, null, 360)) is { } mortgageError)
+        {
+            errors["mortgage"] = [mortgageError.Message];
         }
 
         return errors;

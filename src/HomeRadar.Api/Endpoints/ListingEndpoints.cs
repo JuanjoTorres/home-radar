@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using HomeRadar.Api.Contracts;
 using HomeRadar.Api.Infrastructure;
+using HomeRadar.Application.Analysis;
 using HomeRadar.Application.Ports;
 using HomeRadar.Application.Search;
 using HomeRadar.Domain.Listings;
@@ -20,11 +21,15 @@ public static class ListingEndpoints
 
         listings.MapGet("/", ListAsync).Document("listListings", "List listings with simple query-string filters.", Tag)
             .Produces<PageDto<ListingSummaryDto>>()
-            .ProducesValidationProblem();
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         listings.MapPost("/search", SearchAsync).Document("searchListings", "Search listings with full filters.", Tag)
             .Produces<PageDto<ListingSummaryDto>>()
-            .ProducesValidationProblem();
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
         listings.MapGet("/{listingId:guid}", GetAsync).Document("getListing", "Get a listing with its photos, features and sibling listings.", Tag)
             .Produces<ListingDetailDto>()
@@ -37,16 +42,19 @@ public static class ListingEndpoints
         return group;
     }
 
-    private static async Task<Results<Ok<PageDto<ListingSummaryDto>>, ValidationProblem>> ListAsync(
+    private static async Task<Results<Ok<PageDto<ListingSummaryDto>>, ValidationProblem, ProblemHttpResult>> ListAsync(
         [FromQuery] string? municipality,
         [FromQuery] decimal? priceMin,
         [FromQuery] decimal? priceMax,
         [FromQuery] string? sourceKey,
         [FromQuery] int? newWithinHours,
+        [FromQuery] Guid? affordableFor,
+        [FromQuery] decimal? budget,
         [FromQuery] ListingSortDto? sort,
         [FromQuery] string? cursor,
         [FromQuery] int? limit,
         IHomeRadarDbContext db,
+        AffordabilityLimitResolver affordability,
         TimeProvider clock,
         CancellationToken cancellationToken)
     {
@@ -56,14 +64,15 @@ public static class ListingEndpoints
             Price = priceMin is null && priceMax is null ? null : new DecimalRangeDto(priceMin, priceMax),
             SourceKeys = sourceKey is null ? null : [sourceKey],
             NewWithinHours = newWithinHours,
+            Affordability = affordableFor is null && budget is null ? null : new AffordabilityFilterDto { FinancingProfileId = affordableFor, Budget = budget is { } amount ? new MoneyDto(amount) : null },
             Sort = sort ?? ListingSortDto.FirstSeenDesc,
             Cursor = cursor,
             Limit = limit ?? 25,
         };
-        return await SearchAsync(request, db, clock, cancellationToken);
+        return await SearchAsync(request, db, affordability, clock, cancellationToken);
     }
 
-    private static async Task<Results<Ok<PageDto<ListingSummaryDto>>, ValidationProblem>> SearchAsync(ListingSearchRequestDto request, IHomeRadarDbContext db, TimeProvider clock, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<PageDto<ListingSummaryDto>>, ValidationProblem, ProblemHttpResult>> SearchAsync(ListingSearchRequestDto request, IHomeRadarDbContext db, AffordabilityLimitResolver affordability, TimeProvider clock, CancellationToken cancellationToken)
     {
         var errors = Validate(request);
         if (errors.Count > 0)
@@ -73,7 +82,19 @@ public static class ListingEndpoints
 
         var now = clock.GetUtcNow();
         var filter = SearchMapping.ToFilter(request);
-        var query = db.Listings.AsNoTracking().Where(ListingFilterSpecification.Build(filter, now));
+        AffordablePriceLimits? limits = null;
+        if (filter.Affordability is { } criteria)
+        {
+            var resolved = await affordability.ResolveAsync(criteria, cancellationToken);
+            if (!resolved.IsSuccess)
+            {
+                return Problems.From(resolved.Error!);
+            }
+
+            limits = resolved.Value;
+        }
+
+        var query = db.Listings.AsNoTracking().Where(ListingFilterSpecification.Build(filter, now, limits));
         var cursorValue = Cursor.Decode(request.Cursor);
         query = ApplyOrderAndCursor(query, request.Sort, cursorValue);
 
@@ -133,6 +154,24 @@ public static class ListingEndpoints
         if (request.NewWithinHours is < 1 or > 720)
         {
             errors["newWithinHours"] = ["Must be between 1 and 720."];
+        }
+
+        if (request.Affordability is { } affordability)
+        {
+            if (affordability.FinancingProfileId is null && affordability.Budget is null)
+            {
+                errors["affordability"] = ["Needs financingProfileId, budget or both."];
+            }
+
+            if (affordability.Budget is { Amount: <= 0 })
+            {
+                errors["affordability.budget"] = ["Must be positive."];
+            }
+
+            if (!Enum.TryParse<Domain.Finance.AffordabilityVerdict>(affordability.MinimumVerdict, ignoreCase: true, out var verdict) || verdict == Domain.Finance.AffordabilityVerdict.NotAffordable)
+            {
+                errors["affordability.minimumVerdict"] = ["Must be Affordable or Borderline."];
+            }
         }
 
         if (request.Radius is { } radius && (radius.Metres < 50 || radius.Metres > 50_000))

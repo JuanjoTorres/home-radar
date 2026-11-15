@@ -1,0 +1,237 @@
+{
+  "configuration": {
+    "businessConfigVersionId": "01a1ded1-4355-71c1-80c4-b45dbe7aebee",
+    "businessConfigValidFrom": "2026-11-01",
+    "businessConfigRevision": 1,
+    "taxRuleSets": [
+      {
+        "id": "01a1ded1-4347-7f12-a8d6-00f4fdaf69db",
+        "jurisdiction": "ES",
+        "validFrom": "2026-06-14",
+        "revision": 1
+      },
+      {
+        "id": "01a1ded1-4322-7735-9374-9a15d56f3232",
+        "jurisdiction": "ES-IB",
+        "validFrom": "2026-06-14",
+        "revision": 1
+      }
+    ],
+    "on": "2026-11-15"
+  },
+  "maximum": {
+    "price": {
+      "amount": 297903.55,
+      "currency": "EUR"
+    },
+    "target": "Borderline",
+    "bindingConstraints": [
+      {
+        "code": "DebtToIncomeAboveLimit",
+        "blocking": true,
+        "message": "Debt-to-income 38.01 % exceeds the 35 % limit",
+        "amount": null,
+        "ratio": 0.3801
+      }
+    ]
+  },
+  "atMaximum": {
+    "verdict": "Borderline",
+    "reasons": [
+      {
+        "code": "DebtToIncomeAboveLimit",
+        "blocking": false,
+        "message": "Debt-to-income 38 % exceeds the 35 % limit",
+        "amount": null,
+        "ratio": 0.38
+      }
+    ],
+    "purchaseKind": "Resale",
+    "price": {
+      "amount": 297903.55,
+      "currency": "EUR"
+    },
+    "taxableValue": {
+      "amount": 297903.55,
+      "currency": "EUR"
+    },
+    "location": {
+      "jurisdiction": "ES-IB",
+      "subdivisionCode": "MALLORCA",
+      "subdivisionName": "Mallorca",
+      "assumed": false,
+      "valueLimit": 331859.7
+    },
+    "taxes": {
+      "total": {
+        "amount": 7623.21,
+        "currency": "EUR"
+      },
+      "lines": [
+        {
+          "tax": "TransferTax",
+          "ruleId": "itp_under36_first_home_2",
+          "taxBase": {
+            "amount": 297903.55,
+            "currency": "EUR"
+          },
+          "quota": {
+            "amount": 7623.21,
+            "currency": "EUR"
+          },
+          "effectiveRate": 0.02559,
+          "explanation": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)",
+          "bonusRuleId": null,
+          "bonusAmount": {
+            "amount": 0,
+            "currency": "EUR"
+          },
+          "sourceUrl": "https://www.boe.es/buscar/pdf/2014/BOE-A-2014-6925-consolidado.pdf"
+        }
+      ],
+      "reliefs": [
+        {
+          "ruleId": "itp_under36_first_home_2",
+          "tax": "TransferTax",
+          "outcome": "Met",
+          "applied": true,
+          "checks": [
+            {
+              "condition": "ageMax",
+              "outcome": "Met",
+              "detail": "age 33, required at most 35"
+            },
+            {
+              "condition": "firstHome",
+              "outcome": "Met",
+              "detail": "first home"
+            }
+          ],
+          "potentialSaving": null,
+          "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
+        },
+        {
+          "ruleId": "itp_primary_residence_4",
+          "tax": "TransferTax",
+          "outcome": "Met",
+          "applied": false,
+          "checks": [
+            {
+              "condition": "noOtherHome",
+              "outcome": "Met",
+              "detail": "owns no other home"
+            },
+            {
+              "condition": "primaryResidence",
+              "outcome": "Met",
+              "detail": "primary residence"
+            }
+          ],
+          "potentialSaving": null,
+          "description": "ITP 4 % for a primary residence on the first 270,151.20 EUR and 8 % on the excess, value up to the island limit (art. 10 c) TR and DA 5.ª)"
+        }
+      ]
+    },
+    "costs": [
+      {
+        "category": "Notary",
+        "code": "notary_purchase_deed",
+        "amount": {
+          "amount": 618.29,
+          "currency": "EUR"
+        },
+        "explanation": "Notary fee for the purchase deed: RD 1426/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus ~150 EUR of copies and folios. Copies and folios are an estimate; the 10 % rebate cited by secondary sources (RDL 6/2000) is not in the consolidated tariff and is not applied",
+        "estimated": true,
+        "sourceUrl": "https://www.boe.es/eli/es/rd/1989/11/17/1426/con"
+      },
+      {
+        "category": "LandRegistry",
+        "code": "registry_purchase",
+        "amount": {
+          "amount": 251.45,
+          "currency": "EUR"
+        },
+        "explanation": "Land registry fee for the purchase: RD 1427/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus the nota simple. The 2,181.67 EUR cap is formulated for the global tariff and may not apply per property; it only binds above ~7 M EUR",
+        "estimated": true,
+        "sourceUrl": "https://boe.es/buscar/pdf/1989/BOE-A-1989-28112-consolidado.pdf"
+      },
+      {
+        "category": "Gestoria",
+        "code": "gestoria",
+        "amount": {
+          "amount": 400,
+          "currency": "EUR"
+        },
+        "explanation": "Gestoria for the purchase deed (market estimate)",
+        "estimated": true,
+        "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+      },
+      {
+        "category": "Appraisal",
+        "code": "appraisal",
+        "amount": {
+          "amount": 450,
+          "currency": "EUR"
+        },
+        "explanation": "Official appraisal paid by the borrower (Ley 5/2019; market estimate)",
+        "estimated": true,
+        "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+      }
+    ],
+    "totalAcquisitionCost": {
+      "amount": 307246.5,
+      "currency": "EUR"
+    },
+    "loan": {
+      "amount": 297903.55,
+      "currency": "EUR"
+    },
+    "loanToValue": 1.0,
+    "guaranteeProgramId": "ico_state_guarantee",
+    "cashNeeded": {
+      "amount": 9342.95,
+      "currency": "EUR"
+    },
+    "savings": {
+      "amount": 30000,
+      "currency": "EUR"
+    },
+    "remainingSavings": {
+      "amount": 20657.05,
+      "currency": "EUR"
+    },
+    "payments": [
+      {
+        "scenario": "base",
+        "euriborPercent": 3.239,
+        "periods": [
+          {
+            "fromMonth": 1,
+            "toMonth": 360,
+            "annualRatePercent": 2.75,
+            "monthlyPayment": {
+              "amount": 1216.16,
+              "currency": "EUR"
+            }
+          }
+        ],
+        "maxMonthlyPayment": {
+          "amount": 1216.16,
+          "currency": "EUR"
+        },
+        "totalInterest": {
+          "amount": 139915.84,
+          "currency": "EUR"
+        }
+      }
+    ],
+    "debtToIncome": 0.38,
+    "stressScenario": "plus2",
+    "stressDebtToIncome": 0.38,
+    "ageAtLoanMaturity": 63,
+    "warnings": [
+      "Cadastral reference value unknown; the tax base uses the price (the real base is the higher of both)",
+      "No renovation cost included"
+    ]
+  }
+}

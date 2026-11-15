@@ -1,3 +1,4 @@
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Profiles;
 
 namespace HomeRadar.Application.Seeding;
@@ -34,3 +35,7 @@ public sealed record SourceSeed(
     bool Priority,
     bool Enabled,
     string ConfigurationJson);
+
+public sealed record TaxRuleSetSeed(TaxRuleDocument Document, DateOnly ValidFrom, int Revision, DateOnly? VerifiedOn, string SourceFile);
+
+public sealed record BusinessConfigSeed(DateOnly ValidFrom, int Revision, BusinessConfig Config, string Source);

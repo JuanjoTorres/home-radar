@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HomeRadar.Application.Outbox;
 using HomeRadar.Application.Ports;
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Outbox;
 using HomeRadar.Domain.Profiles;
@@ -19,7 +20,8 @@ public sealed class ListingMatchedHandler(IHomeRadarDbContext db, IEnumerable<IN
         var source = await db.Sources.AsNoTracking().SingleAsync(s => s.Id == listing.SourceId, cancellationToken);
         var profiles = await db.SearchProfiles.AsNoTracking().Where(p => payload.SearchProfileIds.Contains(p.Id)).ToListAsync(cancellationToken);
 
-        var text = ListingMessageFormatter.NewListing(listing, source.Name, profiles.Select(p => p.Name).ToList());
+        var verdict = await VerdictReader.LatestAsync(db, listing.Id, cancellationToken);
+        var text = ListingMessageFormatter.NewListing(listing, source.Name, profiles.Select(p => p.Name).ToList(), verdict);
         var photo = listing.Photos.OrderBy(p => p.Position).FirstOrDefault()?.Url;
         var notification = new Notification(message.Id, listing.Title, text, listing.Url, photo);
 
@@ -41,7 +43,8 @@ public sealed class WatchlistChangedHandler(IHomeRadarDbContext db, IEnumerable<
         var listing = await db.Listings.AsNoTracking().SingleAsync(l => l.Id == payload.ListingId, cancellationToken);
         var events = await db.ListingEvents.AsNoTracking().Where(e => payload.EventIds.Contains(e.Id)).OrderBy(e => e.OccurredAt).ToListAsync(cancellationToken);
 
-        var notification = new Notification(message.Id, listing.Title, ListingMessageFormatter.Changed(listing, events), listing.Url, null);
+        var verdict = await VerdictReader.LatestAsync(db, listing.Id, cancellationToken);
+        var notification = new Notification(message.Id, listing.Title, ListingMessageFormatter.Changed(listing, events, verdict), listing.Url, null);
         foreach (var channel in channels.Where(channel => channel.Channel == AlertChannel.Telegram))
         {
             await channel.SendAsync(notification, cancellationToken);
@@ -70,4 +73,27 @@ public sealed class ListingEventWebhookHandler : IOutboxHandler
     public string MessageType => OutboxMessageTypes.ListingEvent;
 
     public Task HandleAsync(OutboxMessage message, CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+public static class VerdictReader
+{
+    public static async Task<VerdictSummary?> LatestAsync(IHomeRadarDbContext db, Guid listingId, CancellationToken cancellationToken)
+    {
+        var profile = await db.FinancingProfiles.AsNoTracking()
+            .Where(candidate => candidate.IsDefault)
+            .OrderByDescending(candidate => candidate.UpdatedAt)
+            .Select(candidate => new { candidate.Id, candidate.Name })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (profile is null)
+        {
+            return null;
+        }
+
+        var stored = await db.ListingAnalyses.AsNoTracking()
+            .Where(analysis => analysis.ListingId == listingId && analysis.FinancingProfileId == profile.Id)
+            .OrderByDescending(analysis => analysis.CalculatedAt)
+            .Select(analysis => analysis.ResultJson)
+            .FirstOrDefaultAsync(cancellationToken);
+        return stored is null ? null : new VerdictSummary(profile.Name, JsonSerializer.Deserialize<FinancialAnalysis>(stored, FinanceJson.Options)!);
+    }
 }

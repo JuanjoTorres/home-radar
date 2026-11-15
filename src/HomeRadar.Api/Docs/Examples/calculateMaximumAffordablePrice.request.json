@@ -1,0 +1,32 @@
+{
+  "municipality": "Inca",
+  "purchaseKind": "Resale",
+  "includeGuarantees": true,
+  "minimumVerdict": "Borderline",
+  "financing": {
+    "savings": {
+      "amount": 30000,
+      "currency": "EUR"
+    },
+    "netMonthlyIncome": {
+      "amount": 3200,
+      "currency": "EUR"
+    },
+    "maxDebtToIncomeRatio": 0.35,
+    "mortgage": {
+      "type": "Fixed",
+      "maxLoanToValue": 0.8,
+      "nominalRatePercent": 2.75,
+      "termMonths": 360
+    },
+    "buyer": {
+      "age": 33,
+      "firstHome": true,
+      "primaryResidence": true,
+      "residentInBalearics": true,
+      "yearsResidentInBalearics": 8,
+      "grossAnnualIncome": 46000,
+      "netWorth": 70000
+    }
+  }
+}

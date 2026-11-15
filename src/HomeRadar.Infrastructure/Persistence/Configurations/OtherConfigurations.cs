@@ -123,9 +123,10 @@ internal sealed class BusinessConfigVersionConfiguration : IEntityTypeConfigurat
     {
         builder.ToTable("business_config_versions");
         builder.HasKey(version => version.Id);
-        builder.HasIndex(version => version.ValidFrom).IsUnique();
+        builder.HasIndex(version => new { version.ValidFrom, version.Revision }).IsUnique();
         builder.Property(version => version.PayloadJson).HasColumnType("jsonb");
         builder.Property(version => version.SourceDescription).HasMaxLength(500);
+        builder.Ignore(version => version.Config);
         builder.Ignore(version => version.DomainEvents);
     }
 }

@@ -1,4 +1,6 @@
 using HomeRadar.Application.Ports;
+using HomeRadar.Domain.Configuration;
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Profiles;
 using HomeRadar.Domain.Sources;
 using HomeRadar.Domain.ValueObjects;
@@ -15,6 +17,46 @@ public sealed class SeedService(IHomeRadarDbContext db, ISourceAdapterRegistry a
         await ApplyFinancingProfilesAsync(financingProfiles, cancellationToken);
         await ApplySearchProfilesAsync(searchProfiles, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<FinanceSeedResult> ApplyFinanceAsync(IReadOnlyList<TaxRuleSetSeed> taxRuleSets, IReadOnlyList<BusinessConfigSeed> businessConfigs, CancellationToken cancellationToken)
+    {
+        var now = clock.GetUtcNow();
+        var existingSets = await db.TaxRuleSets.AsNoTracking()
+            .Select(set => new { set.Jurisdiction, set.ValidFrom, set.Revision })
+            .ToListAsync(cancellationToken);
+        var added = 0;
+        var rejected = 0;
+        foreach (var seed in taxRuleSets)
+        {
+            var errors = TaxRuleDocumentValidator.Validate(seed.Document);
+            if (errors.Count > 0)
+            {
+                rejected++;
+                logger.LogError("Tax rule file {File} rejected: {Errors}", seed.SourceFile, string.Join("; ", errors));
+                continue;
+            }
+
+            if (existingSets.Any(set => set.Jurisdiction == seed.Document.Jurisdiction && set.ValidFrom == seed.ValidFrom && set.Revision == seed.Revision))
+            {
+                continue;
+            }
+
+            db.TaxRuleSets.Add(new TaxRuleSet(seed.Document, seed.ValidFrom, seed.Revision, seed.VerifiedOn, seed.SourceFile, now));
+            added++;
+        }
+
+        var existingConfigs = await db.BusinessConfigVersions.AsNoTracking()
+            .Select(version => new { version.ValidFrom, version.Revision })
+            .ToListAsync(cancellationToken);
+        foreach (var seed in businessConfigs.Where(seed => !existingConfigs.Any(version => version.ValidFrom == seed.ValidFrom && version.Revision == seed.Revision)))
+        {
+            db.BusinessConfigVersions.Add(new BusinessConfigVersion(seed.ValidFrom, seed.Revision, seed.Config, seed.Source, now));
+            added++;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return new FinanceSeedResult(added, rejected);
     }
 
     private async Task ApplySourcesAsync(IReadOnlyList<SourceSeed> seeds, CancellationToken cancellationToken)
@@ -79,3 +121,5 @@ public sealed class SeedService(IHomeRadarDbContext db, ISourceAdapterRegistry a
         }
     }
 }
+
+public sealed record FinanceSeedResult(int Added, int Rejected);

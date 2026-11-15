@@ -1,3 +1,4 @@
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.ValueObjects;
 
@@ -62,6 +63,19 @@ public sealed record ListingFilter
     public bool? Parking { get; init; }
 
     public bool IncludeNewBuild { get; init; } = true;
+
+    public AffordabilityCriteria? Affordability { get; init; }
+}
+
+public sealed record AffordabilityCriteria
+{
+    public Guid? FinancingProfileId { get; init; }
+
+    public decimal? Budget { get; init; }
+
+    public AffordabilityVerdict MinimumVerdict { get; init; } = AffordabilityVerdict.Affordable;
+
+    public bool IncludeGuarantees { get; init; }
 }
 
 public sealed record GeoRadius(double Latitude, double Longitude, int Metres);

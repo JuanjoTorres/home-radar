@@ -1,4 +1,5 @@
 using HomeRadar.Api.Contracts;
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Profiles;
 using HomeRadar.Domain.ValueObjects;
@@ -37,6 +38,15 @@ public static class SearchMapping
         Terrace = request.Terrace,
         Parking = request.Parking,
         IncludeNewBuild = request.IncludeNewBuild,
+        Affordability = request.Affordability is { } affordability
+            ? new AffordabilityCriteria
+            {
+                FinancingProfileId = affordability.FinancingProfileId,
+                Budget = affordability.Budget?.Amount,
+                MinimumVerdict = Enum.Parse<AffordabilityVerdict>(affordability.MinimumVerdict, ignoreCase: true),
+                IncludeGuarantees = affordability.IncludeGuarantees,
+            }
+            : null,
     };
 
     public static ListingSearchRequestDto ToRequest(ListingFilter filter) => new()
@@ -63,6 +73,15 @@ public static class SearchMapping
         Terrace = filter.Terrace,
         Parking = filter.Parking,
         IncludeNewBuild = filter.IncludeNewBuild,
+        Affordability = filter.Affordability is { } affordability
+            ? new AffordabilityFilterDto
+            {
+                FinancingProfileId = affordability.FinancingProfileId,
+                Budget = affordability.Budget is { } budget ? new MoneyDto(budget) : null,
+                MinimumVerdict = affordability.MinimumVerdict.ToString(),
+                IncludeGuarantees = affordability.IncludeGuarantees,
+            }
+            : null,
     };
 
     private static List<T> ParseAll<T>(IReadOnlyList<string>? values)

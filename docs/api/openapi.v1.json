@@ -16,7 +16,7 @@
           "Listings"
         ],
         "summary": "List listings with simple query-string filters.",
-        "description": "Quick listing lookup driven by query-string parameters. It is a thin front for `searchListings` with the most common filters\n(municipality, price range, source, \"new within N hours\") and the same cursor envelope. Use `searchListings` for geographic,\nhistory-based or multi-value filters.\n\nResults default to `Active` and `Relisted` listings, newest first (`firstSeenAt`). `daysOnMarket` counts from the publication\ndate when the source publishes one (Solvia, Aliseda, Inmovilla) and from the first time HomeRadar saw the listing otherwise.",
+        "description": "Quick listing lookup driven by query-string parameters. It is a thin front for `searchListings` with the most common filters\n(municipality, price range, source, \"new within N hours\") and the same cursor envelope. Use `searchListings` for geographic,\nhistory-based or multi-value filters.\n\nResults default to `Active` and `Relisted` listings, newest first (`firstSeenAt`). `daysOnMarket` counts from the publication\ndate when the source publishes one (Solvia, Aliseda, Inmovilla) and from the first time HomeRadar saw the listing otherwise.\n\n`affordableFor` (financing profile id) and `budget` (EUR) apply the affordability filter described in `searchListings`.",
         "operationId": "listListings",
         "parameters": [
           {
@@ -30,7 +30,10 @@
             "name": "priceMin",
             "in": "query",
             "schema": {
-              "type": "number",
+              "type": [
+                "null",
+                "number"
+              ],
               "format": "decimal"
             }
           },
@@ -38,7 +41,10 @@
             "name": "priceMax",
             "in": "query",
             "schema": {
-              "type": "number",
+              "type": [
+                "null",
+                "number"
+              ],
               "format": "decimal"
             }
           },
@@ -59,6 +65,25 @@
                 "string"
               ],
               "format": "int32"
+            }
+          },
+          {
+            "name": "affordableFor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "budget",
+            "in": "query",
+            "schema": {
+              "type": [
+                "null",
+                "number"
+              ],
+              "format": "decimal"
             }
           },
           {
@@ -109,6 +134,26 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Missing or invalid X-Api-Key.",
             "content": {
@@ -148,13 +193,39 @@
           "Listings"
         ],
         "summary": "Search listings with full filters.",
-        "description": "Full-text-free structured search over every listing HomeRadar has ingested. All filters are optional and combine with AND.\n\n**Geography.** `municipalities` compares case-insensitively with the municipality published by the source. `polygonWkt` is a\nWKT polygon in WGS84 (`POLYGON((lon lat, …))`) evaluated with PostGIS. `radius` is a circle in metres around a point, evaluated\non an EPSG:25831 projection so distances are metric. Listings without coordinates never match geographic filters.\n\n**History.** `daysOnMarket`, `priceDropsMin`, `cumulativeDropPercentMin` and `newWithinHours` come from the append-only change\nlog, not from the source: a drop is only counted once HomeRadar has seen both prices.\n\n**Possession.** Bank-owned stock often carries `NoPossession` (occupied, moratorium) or `RentedUntil`; `excludePossession`\nremoves those. `Unknown` means the source gave no signal.\n\n**Pagination.** Keyset cursors: pass back `nextCursor` unchanged with the same filters and sort. Changing the filters or sort\nwith an old cursor returns a 400. Sorts: `FirstSeenDesc` (default), `PriceAsc`, `PriceDesc`, `PricePerM2`, `PriceDropDesc`.\nListings without a price sort last for price-based sorts.\n\nAffordability filtering (`financingProfileId`, `budget`) arrives with the analysis engine in phase 2 as an additive change.",
+        "description": "Full-text-free structured search over every listing HomeRadar has ingested. All filters are optional and combine with AND.\n\n**Geography.** `municipalities` compares case-insensitively with the municipality published by the source. `polygonWkt` is a\nWKT polygon in WGS84 (`POLYGON((lon lat, …))`) evaluated with PostGIS. `radius` is a circle in metres around a point, evaluated\non an EPSG:25831 projection so distances are metric. Listings without coordinates never match geographic filters.\n\n**History.** `daysOnMarket`, `priceDropsMin`, `cumulativeDropPercentMin` and `newWithinHours` come from the append-only change\nlog, not from the source: a drop is only counted once HomeRadar has seen both prices.\n\n**Possession.** Bank-owned stock often carries `NoPossession` (occupied, moratorium) or `RentedUntil`; `excludePossession`\nremoves those. `Unknown` means the source gave no signal.\n\n**Pagination.** Keyset cursors: pass back `nextCursor` unchanged with the same filters and sort. Changing the filters or sort\nwith an old cursor returns a 400. Sorts: `FirstSeenDesc` (default), `PriceAsc`, `PriceDesc`, `PricePerM2`, `PriceDropDesc`.\nListings without a price sort last for price-based sorts.\n\n**Affordability.** `affordability.financingProfileId` keeps listings whose price is at most the profile's maximum affordable\nprice for the listing's island (value limits differ per island) and kind (resale pays ITP; new build pays VAT + AJD). The\nmaximum is the same one `calculateMaximumAffordablePrice` returns: highest price with verdict `Affordable` (or `Borderline`\nwith `minimumVerdict`), taxes and closing costs included, with the profile's loan-to-value or an eligible ICO/IBAVI guarantee\nwhen `includeGuarantees` is true. `affordability.budget` keeps listings whose price + taxes + closing costs fit in the budget,\ntaxed at standard rates unless a profile is also given. Listings without a price never pass. Renovation is not included until\nthe rule-based estimator of phase 3. Unknown municipalities are treated as Mallorca, like in the analysis.",
         "operationId": "searchListings",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ListingSearchRequestDto"
+              },
+              "example": {
+                "municipalities": [
+                  "Inca",
+                  "Sineu",
+                  "Santa Maria del Camí"
+                ],
+                "price": {
+                  "min": null,
+                  "max": 290000
+                },
+                "rooms": {
+                  "min": 2,
+                  "max": null
+                },
+                "excludePossession": [
+                  "NoPossession"
+                ],
+                "newWithinHours": 72,
+                "affordability": {
+                  "financingProfileId": "01a1dd61-0c4d-7e88-a3f2-6b1e2d9c7f40",
+                  "minimumVerdict": "Affordable",
+                  "includeGuarantees": true
+                },
+                "sort": "PriceAsc",
+                "limit": 25
               }
             }
           },
@@ -177,6 +248,26 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -445,6 +536,44 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/FinancingProfileInputDto"
+              },
+              "example": {
+                "key": "default",
+                "name": "Compra en pareja",
+                "savings": {
+                  "amount": 75000,
+                  "currency": "EUR"
+                },
+                "netMonthlyIncome": {
+                  "amount": 3900,
+                  "currency": "EUR"
+                },
+                "existingMonthlyDebt": {
+                  "amount": 180,
+                  "currency": "EUR"
+                },
+                "maxDebtToIncomeRatio": 0.35,
+                "mortgage": {
+                  "type": "Mixed",
+                  "maxLoanToValue": 0.8,
+                  "nominalRatePercent": 2.25,
+                  "spreadPercent": 0.65,
+                  "fixedMonths": 120,
+                  "termMonths": 360
+                },
+                "buyer": {
+                  "age": 33,
+                  "firstHome": true,
+                  "primaryResidence": true,
+                  "residentInBalearics": true,
+                  "yearsResidentInBalearics": 8,
+                  "taxableIncomeBase": 48500,
+                  "jointTaxReturn": false,
+                  "grossAnnualIncome": 61000,
+                  "netWorth": 82000,
+                  "buyerCount": 2
+                },
+                "isDefault": true
               }
             }
           },
@@ -828,6 +957,33 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SearchProfileInputDto"
+              },
+              "example": {
+                "key": "pla-asequible",
+                "name": "Pla de Mallorca, lo que puedo pagar",
+                "filter": {
+                  "municipalities": [
+                    "Inca",
+                    "Sineu",
+                    "Llubí",
+                    "Sencelles"
+                  ],
+                  "rooms": {
+                    "min": 2,
+                    "max": null
+                  },
+                  "excludePossession": [
+                    "NoPossession"
+                  ],
+                  "affordability": {
+                    "financingProfileId": "01a1dd61-0c4d-7e88-a3f2-6b1e2d9c7f40"
+                  }
+                },
+                "channels": [
+                  "Telegram"
+                ],
+                "priority": true,
+                "enabled": true
               }
             }
           },
@@ -1584,10 +1740,2513 @@
           }
         }
       }
+    },
+    "/v1/listings/{listingId}/analysis": {
+      "get": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Analyse whether a listing is affordable with a financing profile.",
+        "description": "Answers \"can I buy this one, and what would it really cost?\" for one listing and one financing profile (the default profile\nwhen `financingProfileId` is omitted). Deterministic, rule-based and reproducible.\n\n**What goes into the total cost.** Price + taxes + notary + land registry + gestoria + appraisal (only with a mortgage, the\nonly mortgage cost left to the borrower by Ley 5/2019) + mortgage opening fee (if the profile has one) + guarantee fee (IBAVI\ncharges 0.5 % of the guaranteed amount). Renovation is added from phase 3; until then a warning reminds it is missing.\n\n**Taxes.** Resale pays transfer tax (ITP) on the higher of price and cadastral reference value; new homes pay VAT (10 %, 4 %\nfor protected special regime) and stamp duty (AJD). The engine reads the tax rule sets valid on the calculation date for the\nstate (`ES`) and the Balearic Islands (`ES-IB`) — none of the figures live in code. For every tax it starts from the standard\nrule (or a mandatory override such as AJD 2 % from 1 M EUR), evaluates every reduced rate and bonus against the buyer data,\nand applies the cheapest option whose requirements are **all met**. Requirements that cannot be checked with the profile\n(IRPF base, gross income, net worth…) make a relief `Unknown`: it is not applied, and `potentialSaving` tells how much less\nwould be paid if they were met. Reduced rates in the Balearic Islands cover the first 270,151.20 EUR and need the value to be\nwithin the island limit (331,859.70 EUR in Mallorca since 2026-06-14); the excess pays 8 % ITP or 1.5 % AJD.\n\n**Loan and payments.** Loan = price × loan-to-value (appraisal assumed equal to price). Monthly payment with the French formula\n`L·i / (1 − (1 + i)^−n)`, `i` = annual rate / 12. Variable loans pay the initial rate for `fixedMonths` (12 by default when an\ninitial rate is given) and then Euríbor + spread; mixed loans pay the fixed rate for `fixedMonths`. Both are computed under\nevery Euríbor scenario of the business configuration (base, +1, +2 points).\n\n**Verdict.** `Affordable` when savings cover deposit, taxes and costs, and (highest base payment + existing debts) / net\nincome is within the profile's limit, also under the stress scenario. `Borderline` for small gaps: shortfall up to the\nconfigured tolerance (5,000 EUR), debt-to-income up to 3 points over the limit, the stress scenario over the limit, or a loan\nending after age 75. `NotAffordable` for anything larger. Each reason carries its amount or ratio.\n\n**Guarantees and aid.** Every aid programme valid on the date is evaluated (ICO and IBAVI guarantees, the Govern's 10,000 EUR\ngrant). When a guarantee raises the loan-to-value, `withGuarantee` repeats the analysis with it (ICO and IBAVI are never\ncombined). Grants are paid after the purchase and are budget-limited, so they never count as cash on signing day.\n\n**Maximum price.** `maximumPrice` is the highest price, to the cent, whose verdict stays `Affordable`; `bindingConstraints`\nare the reasons that appear one cent above it.\n\n**Reproducibility.** The analysis is stored with its inputs (listing content hash, profile version, business configuration\nand tax rule set ids, date). The same inputs return the stored analysis (`reused: true`); any change creates a new one.",
+        "operationId": "getListingAnalysis",
+        "parameters": [
+          {
+            "name": "listingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "financingProfileId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingAnalysisDto"
+                },
+                "example": {
+                  "analysisId": "01a1df02-7c3e-7a51-9b2e-0f4c8d61a2b7",
+                  "listingId": "01a1dd84-2b7f-73c0-8e15-5d0a9f3c4e21",
+                  "financingProfileId": "01a1dd61-0c4d-7e88-a3f2-6b1e2d9c7f40",
+                  "calculatedAt": "2026-11-15T09:12:44.512+00:00",
+                  "reused": false,
+                  "configuration": {
+                    "businessConfigVersionId": "01a1ded1-4355-71c1-80c4-b45dbe7aebee",
+                    "businessConfigValidFrom": "2026-11-01",
+                    "businessConfigRevision": 1,
+                    "taxRuleSets": [
+                      {
+                        "id": "01a1ded1-4347-7f12-a8d6-00f4fdaf69db",
+                        "jurisdiction": "ES",
+                        "validFrom": "2026-06-14",
+                        "revision": 1
+                      },
+                      {
+                        "id": "01a1ded1-4322-7735-9374-9a15d56f3232",
+                        "jurisdiction": "ES-IB",
+                        "validFrom": "2026-06-14",
+                        "revision": 1
+                      }
+                    ],
+                    "on": "2026-11-15"
+                  },
+                  "result": {
+                    "base": {
+                      "verdict": "Affordable",
+                      "reasons": [ ],
+                      "purchaseKind": "Resale",
+                      "price": {
+                        "amount": 245000,
+                        "currency": "EUR"
+                      },
+                      "taxableValue": {
+                        "amount": 245000,
+                        "currency": "EUR"
+                      },
+                      "location": {
+                        "jurisdiction": "ES-IB",
+                        "subdivisionCode": "MALLORCA",
+                        "subdivisionName": "Mallorca",
+                        "assumed": false,
+                        "valueLimit": 331859.7
+                      },
+                      "taxes": {
+                        "total": {
+                          "amount": 4900.0,
+                          "currency": "EUR"
+                        },
+                        "lines": [
+                          {
+                            "tax": "TransferTax",
+                            "ruleId": "itp_under36_first_home_2",
+                            "taxBase": {
+                              "amount": 245000,
+                              "currency": "EUR"
+                            },
+                            "quota": {
+                              "amount": 4900.0,
+                              "currency": "EUR"
+                            },
+                            "effectiveRate": 0.02,
+                            "explanation": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)",
+                            "bonusRuleId": null,
+                            "bonusAmount": {
+                              "amount": 0,
+                              "currency": "EUR"
+                            },
+                            "sourceUrl": "https://www.boe.es/buscar/pdf/2014/BOE-A-2014-6925-consolidado.pdf"
+                          }
+                        ],
+                        "reliefs": [
+                          {
+                            "ruleId": "itp_under36_first_home_2",
+                            "tax": "TransferTax",
+                            "outcome": "Met",
+                            "applied": true,
+                            "checks": [
+                              {
+                                "condition": "ageMax",
+                                "outcome": "Met",
+                                "detail": "age 33, required at most 35"
+                              },
+                              {
+                                "condition": "firstHome",
+                                "outcome": "Met",
+                                "detail": "first home"
+                              }
+                            ],
+                            "potentialSaving": null,
+                            "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
+                          },
+                          {
+                            "ruleId": "itp_primary_residence_4",
+                            "tax": "TransferTax",
+                            "outcome": "Met",
+                            "applied": false,
+                            "checks": [
+                              {
+                                "condition": "noOtherHome",
+                                "outcome": "Met",
+                                "detail": "owns no other home"
+                              },
+                              {
+                                "condition": "primaryResidence",
+                                "outcome": "Met",
+                                "detail": "primary residence"
+                              }
+                            ],
+                            "potentialSaving": null,
+                            "description": "ITP 4 % for a primary residence on the first 270,151.20 EUR and 8 % on the excess, value up to the island limit (art. 10 c) TR and DA 5.ª)"
+                          }
+                        ]
+                      },
+                      "costs": [
+                        {
+                          "category": "Notary",
+                          "code": "notary_purchase_deed",
+                          "amount": {
+                            "amount": 587.89,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Notary fee for the purchase deed: RD 1426/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus ~150 EUR of copies and folios. Copies and folios are an estimate; the 10 % rebate cited by secondary sources (RDL 6/2000) is not in the consolidated tariff and is not applied",
+                          "estimated": true,
+                          "sourceUrl": "https://www.boe.es/eli/es/rd/1989/11/17/1426/con"
+                        },
+                        {
+                          "category": "LandRegistry",
+                          "code": "registry_purchase",
+                          "amount": {
+                            "amount": 233.21,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Land registry fee for the purchase: RD 1427/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus the nota simple. The 2,181.67 EUR cap is formulated for the global tariff and may not apply per property; it only binds above ~7 M EUR",
+                          "estimated": true,
+                          "sourceUrl": "https://boe.es/buscar/pdf/1989/BOE-A-1989-28112-consolidado.pdf"
+                        },
+                        {
+                          "category": "Gestoria",
+                          "code": "gestoria",
+                          "amount": {
+                            "amount": 400,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Gestoria for the purchase deed (market estimate)",
+                          "estimated": true,
+                          "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                        },
+                        {
+                          "category": "Appraisal",
+                          "code": "appraisal",
+                          "amount": {
+                            "amount": 450,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Official appraisal paid by the borrower (Ley 5/2019; market estimate)",
+                          "estimated": true,
+                          "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                        },
+                        {
+                          "category": "Renovation",
+                          "code": "renovation",
+                          "amount": {
+                            "amount": 12000,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Renovation budget provided",
+                          "estimated": false,
+                          "sourceUrl": null
+                        },
+                        {
+                          "category": "RenovationContingency",
+                          "code": "renovationContingency",
+                          "amount": {
+                            "amount": 1200.0,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Contingency 10 % of the renovation",
+                          "estimated": true,
+                          "sourceUrl": null
+                        }
+                      ],
+                      "totalAcquisitionCost": {
+                        "amount": 264771.1,
+                        "currency": "EUR"
+                      },
+                      "loan": {
+                        "amount": 196000.0,
+                        "currency": "EUR"
+                      },
+                      "loanToValue": 0.8,
+                      "guaranteeProgramId": null,
+                      "cashNeeded": {
+                        "amount": 68771.1,
+                        "currency": "EUR"
+                      },
+                      "savings": {
+                        "amount": 75000,
+                        "currency": "EUR"
+                      },
+                      "remainingSavings": {
+                        "amount": 6228.9,
+                        "currency": "EUR"
+                      },
+                      "payments": [
+                        {
+                          "scenario": "base",
+                          "euriborPercent": 3.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 749.2,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 3.889,
+                              "monthlyPayment": {
+                                "amount": 868.34,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 868.34,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 102305.04,
+                            "currency": "EUR"
+                          }
+                        },
+                        {
+                          "scenario": "plus1",
+                          "euriborPercent": 4.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 749.2,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 4.889,
+                              "monthlyPayment": {
+                                "amount": 946.02,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 946.02,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 120949.52,
+                            "currency": "EUR"
+                          }
+                        },
+                        {
+                          "scenario": "plus2",
+                          "euriborPercent": 5.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 749.2,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 5.889,
+                              "monthlyPayment": {
+                                "amount": 1027.34,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 1027.34,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 140465.93,
+                            "currency": "EUR"
+                          }
+                        }
+                      ],
+                      "debtToIncome": 0.2714,
+                      "stressScenario": "plus2",
+                      "stressDebtToIncome": 0.321,
+                      "ageAtLoanMaturity": 63,
+                      "warnings": [
+                        "Cadastral reference value unknown; the tax base uses the price (the real base is the higher of both)",
+                        "Loan-to-value applied over the price; the bank uses the lower of price and appraisal"
+                      ]
+                    },
+                    "withGuarantee": {
+                      "verdict": "Borderline",
+                      "reasons": [
+                        {
+                          "code": "StressScenarioAboveLimit",
+                          "blocking": false,
+                          "message": "Under the plus2 Euríbor scenario the debt-to-income rises to 40.13 %",
+                          "amount": null,
+                          "ratio": 0.4013
+                        }
+                      ],
+                      "purchaseKind": "Resale",
+                      "price": {
+                        "amount": 245000,
+                        "currency": "EUR"
+                      },
+                      "taxableValue": {
+                        "amount": 245000,
+                        "currency": "EUR"
+                      },
+                      "location": {
+                        "jurisdiction": "ES-IB",
+                        "subdivisionCode": "MALLORCA",
+                        "subdivisionName": "Mallorca",
+                        "assumed": false,
+                        "valueLimit": 331859.7
+                      },
+                      "taxes": {
+                        "total": {
+                          "amount": 4900.0,
+                          "currency": "EUR"
+                        },
+                        "lines": [
+                          {
+                            "tax": "TransferTax",
+                            "ruleId": "itp_under36_first_home_2",
+                            "taxBase": {
+                              "amount": 245000,
+                              "currency": "EUR"
+                            },
+                            "quota": {
+                              "amount": 4900.0,
+                              "currency": "EUR"
+                            },
+                            "effectiveRate": 0.02,
+                            "explanation": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)",
+                            "bonusRuleId": null,
+                            "bonusAmount": {
+                              "amount": 0,
+                              "currency": "EUR"
+                            },
+                            "sourceUrl": "https://www.boe.es/buscar/pdf/2014/BOE-A-2014-6925-consolidado.pdf"
+                          }
+                        ],
+                        "reliefs": [
+                          {
+                            "ruleId": "itp_under36_first_home_2",
+                            "tax": "TransferTax",
+                            "outcome": "Met",
+                            "applied": true,
+                            "checks": [
+                              {
+                                "condition": "ageMax",
+                                "outcome": "Met",
+                                "detail": "age 33, required at most 35"
+                              },
+                              {
+                                "condition": "firstHome",
+                                "outcome": "Met",
+                                "detail": "first home"
+                              }
+                            ],
+                            "potentialSaving": null,
+                            "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
+                          },
+                          {
+                            "ruleId": "itp_primary_residence_4",
+                            "tax": "TransferTax",
+                            "outcome": "Met",
+                            "applied": false,
+                            "checks": [
+                              {
+                                "condition": "noOtherHome",
+                                "outcome": "Met",
+                                "detail": "owns no other home"
+                              },
+                              {
+                                "condition": "primaryResidence",
+                                "outcome": "Met",
+                                "detail": "primary residence"
+                              }
+                            ],
+                            "potentialSaving": null,
+                            "description": "ITP 4 % for a primary residence on the first 270,151.20 EUR and 8 % on the excess, value up to the island limit (art. 10 c) TR and DA 5.ª)"
+                          }
+                        ]
+                      },
+                      "costs": [
+                        {
+                          "category": "Notary",
+                          "code": "notary_purchase_deed",
+                          "amount": {
+                            "amount": 587.89,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Notary fee for the purchase deed: RD 1426/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus ~150 EUR of copies and folios. Copies and folios are an estimate; the 10 % rebate cited by secondary sources (RDL 6/2000) is not in the consolidated tariff and is not applied",
+                          "estimated": true,
+                          "sourceUrl": "https://www.boe.es/eli/es/rd/1989/11/17/1426/con"
+                        },
+                        {
+                          "category": "LandRegistry",
+                          "code": "registry_purchase",
+                          "amount": {
+                            "amount": 233.21,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Land registry fee for the purchase: RD 1427/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus the nota simple. The 2,181.67 EUR cap is formulated for the global tariff and may not apply per property; it only binds above ~7 M EUR",
+                          "estimated": true,
+                          "sourceUrl": "https://boe.es/buscar/pdf/1989/BOE-A-1989-28112-consolidado.pdf"
+                        },
+                        {
+                          "category": "Gestoria",
+                          "code": "gestoria",
+                          "amount": {
+                            "amount": 400,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Gestoria for the purchase deed (market estimate)",
+                          "estimated": true,
+                          "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                        },
+                        {
+                          "category": "Appraisal",
+                          "code": "appraisal",
+                          "amount": {
+                            "amount": 450,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Official appraisal paid by the borrower (Ley 5/2019; market estimate)",
+                          "estimated": true,
+                          "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                        },
+                        {
+                          "category": "Renovation",
+                          "code": "renovation",
+                          "amount": {
+                            "amount": 12000,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Renovation budget provided",
+                          "estimated": false,
+                          "sourceUrl": null
+                        },
+                        {
+                          "category": "RenovationContingency",
+                          "code": "renovationContingency",
+                          "amount": {
+                            "amount": 1200.0,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Contingency 10 % of the renovation",
+                          "estimated": true,
+                          "sourceUrl": null
+                        }
+                      ],
+                      "totalAcquisitionCost": {
+                        "amount": 264771.1,
+                        "currency": "EUR"
+                      },
+                      "loan": {
+                        "amount": 245000.0,
+                        "currency": "EUR"
+                      },
+                      "loanToValue": 1.0,
+                      "guaranteeProgramId": "ico_state_guarantee",
+                      "cashNeeded": {
+                        "amount": 19771.1,
+                        "currency": "EUR"
+                      },
+                      "savings": {
+                        "amount": 75000,
+                        "currency": "EUR"
+                      },
+                      "remainingSavings": {
+                        "amount": 55228.9,
+                        "currency": "EUR"
+                      },
+                      "payments": [
+                        {
+                          "scenario": "base",
+                          "euriborPercent": 3.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 936.5,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 3.889,
+                              "monthlyPayment": {
+                                "amount": 1085.42,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 1085.42,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 127881.31,
+                            "currency": "EUR"
+                          }
+                        },
+                        {
+                          "scenario": "plus1",
+                          "euriborPercent": 4.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 936.5,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 4.889,
+                              "monthlyPayment": {
+                                "amount": 1182.53,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 1182.53,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 151186.9,
+                            "currency": "EUR"
+                          }
+                        },
+                        {
+                          "scenario": "plus2",
+                          "euriborPercent": 5.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 936.5,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 5.889,
+                              "monthlyPayment": {
+                                "amount": 1284.18,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 1284.18,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 175582.42,
+                            "currency": "EUR"
+                          }
+                        }
+                      ],
+                      "debtToIncome": 0.3392,
+                      "stressScenario": "plus2",
+                      "stressDebtToIncome": 0.4013,
+                      "ageAtLoanMaturity": 63,
+                      "warnings": [
+                        "Cadastral reference value unknown; the tax base uses the price (the real base is the higher of both)",
+                        "Loan-to-value applied over the price; the bank uses the lower of price and appraisal"
+                      ]
+                    },
+                    "aid": [
+                      {
+                        "programId": "ico_state_guarantee",
+                        "name": "Aval ICO primera vivienda",
+                        "kind": "LoanGuarantee",
+                        "outcome": "Met",
+                        "checks": [
+                          {
+                            "condition": "noOtherHome",
+                            "outcome": "Met",
+                            "detail": "owns no other home"
+                          },
+                          {
+                            "condition": "primaryResidence",
+                            "outcome": "Met",
+                            "detail": "primary residence"
+                          }
+                        ],
+                        "maxLoanToValue": 1.0,
+                        "grantAmount": null,
+                        "budgetLimited": false,
+                        "verified": true,
+                        "sourceUrl": "https://www.boe.es/boe/dias/2026/07/02/pdfs/BOE-A-2026-14404.pdf",
+                        "note": "Balearic income limit 7.5 × IPREM per buyer (ICO note 2026-06-24); +0.3 × IPREM per minor not applied. Not combinable with IBAVI in the same loan according to the press (unregulated)"
+                      },
+                      {
+                        "programId": "ibavi_nova_hipoteca_jove",
+                        "name": "IBAVI Nova Hipoteca Jove",
+                        "kind": "LoanGuarantee",
+                        "outcome": "Met",
+                        "checks": [
+                          {
+                            "condition": "noOtherHome",
+                            "outcome": "Met",
+                            "detail": "owns no other home"
+                          },
+                          {
+                            "condition": "primaryResidence",
+                            "outcome": "Met",
+                            "detail": "primary residence"
+                          }
+                        ],
+                        "maxLoanToValue": 1.0,
+                        "grantAmount": null,
+                        "budgetLimited": false,
+                        "verified": true,
+                        "sourceUrl": "https://www.caib.es/sites/nova_hipoteca_jove/es/requisitos/",
+                        "note": "Guarantee of 20 % of the price (all buyers under 40 or family/disability) or 15 %; the bank must lend at least 80 %. Subject to the programme budget"
+                      }
+                    ],
+                    "maximumPrice": {
+                      "price": {
+                        "amount": 267136.84,
+                        "currency": "EUR"
+                      },
+                      "target": "Affordable",
+                      "bindingConstraints": [
+                        {
+                          "code": "StressScenarioAboveLimit",
+                          "blocking": false,
+                          "message": "Under the plus2 Euríbor scenario the debt-to-income rises to 35.01 %",
+                          "amount": null,
+                          "ratio": 0.3501
+                        }
+                      ]
+                    },
+                    "maximumPriceWithGuarantee": null
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analysis/simulations": {
+      "post": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Simulate a purchase without a listing.",
+        "description": "Runs the same analysis as `getListingAnalysis` on a purchase described in the request, without a listing: price, resale or new\nbuild, municipality (it decides the island value limit), optional cadastral reference value and renovation budget. Financing\ncomes from `financing` (inline assumptions), else from `financingProfileId`, else from the default profile.\n\nUse it to play with margins: \"if I buy at X and renovate for Y, what does it cost and can I still afford it?\", or to see how\na different Euríbor (`euriborPercent`) changes the payments of a variable or mixed mortgage. Renovation adds the contingency\npercentage of the business configuration (10 % by default). `on` evaluates the rules, island limits and aid valid on another\ndate. Nothing is stored.",
+        "operationId": "simulatePurchase",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRequestDto"
+              },
+              "example": {
+                "price": {
+                  "amount": 245000,
+                  "currency": "EUR"
+                },
+                "purchaseKind": "Resale",
+                "municipality": "Inca",
+                "renovationCost": {
+                  "amount": 12000,
+                  "currency": "EUR"
+                },
+                "financing": {
+                  "savings": {
+                    "amount": 75000,
+                    "currency": "EUR"
+                  },
+                  "netMonthlyIncome": {
+                    "amount": 3200,
+                    "currency": "EUR"
+                  },
+                  "maxDebtToIncomeRatio": 0.35,
+                  "mortgage": {
+                    "type": "Mixed",
+                    "maxLoanToValue": 0.8,
+                    "nominalRatePercent": 2.25,
+                    "spreadPercent": 0.65,
+                    "fixedMonths": 120,
+                    "termMonths": 360
+                  },
+                  "buyer": {
+                    "age": 33,
+                    "firstHome": true,
+                    "primaryResidence": true,
+                    "residentInBalearics": true,
+                    "yearsResidentInBalearics": 8,
+                    "grossAnnualIncome": 46000,
+                    "netWorth": 70000
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationResultDto"
+                },
+                "example": {
+                  "configuration": {
+                    "businessConfigVersionId": "01a1ded1-4355-71c1-80c4-b45dbe7aebee",
+                    "businessConfigValidFrom": "2026-11-01",
+                    "businessConfigRevision": 1,
+                    "taxRuleSets": [
+                      {
+                        "id": "01a1ded1-4347-7f12-a8d6-00f4fdaf69db",
+                        "jurisdiction": "ES",
+                        "validFrom": "2026-06-14",
+                        "revision": 1
+                      },
+                      {
+                        "id": "01a1ded1-4322-7735-9374-9a15d56f3232",
+                        "jurisdiction": "ES-IB",
+                        "validFrom": "2026-06-14",
+                        "revision": 1
+                      }
+                    ],
+                    "on": "2026-11-15"
+                  },
+                  "euriborPercent": 3.239,
+                  "result": {
+                    "base": {
+                      "verdict": "Affordable",
+                      "reasons": [ ],
+                      "purchaseKind": "Resale",
+                      "price": {
+                        "amount": 245000,
+                        "currency": "EUR"
+                      },
+                      "taxableValue": {
+                        "amount": 245000,
+                        "currency": "EUR"
+                      },
+                      "location": {
+                        "jurisdiction": "ES-IB",
+                        "subdivisionCode": "MALLORCA",
+                        "subdivisionName": "Mallorca",
+                        "assumed": false,
+                        "valueLimit": 331859.7
+                      },
+                      "taxes": {
+                        "total": {
+                          "amount": 4900.0,
+                          "currency": "EUR"
+                        },
+                        "lines": [
+                          {
+                            "tax": "TransferTax",
+                            "ruleId": "itp_under36_first_home_2",
+                            "taxBase": {
+                              "amount": 245000,
+                              "currency": "EUR"
+                            },
+                            "quota": {
+                              "amount": 4900.0,
+                              "currency": "EUR"
+                            },
+                            "effectiveRate": 0.02,
+                            "explanation": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)",
+                            "bonusRuleId": null,
+                            "bonusAmount": {
+                              "amount": 0,
+                              "currency": "EUR"
+                            },
+                            "sourceUrl": "https://www.boe.es/buscar/pdf/2014/BOE-A-2014-6925-consolidado.pdf"
+                          }
+                        ],
+                        "reliefs": [
+                          {
+                            "ruleId": "itp_under36_first_home_2",
+                            "tax": "TransferTax",
+                            "outcome": "Met",
+                            "applied": true,
+                            "checks": [
+                              {
+                                "condition": "ageMax",
+                                "outcome": "Met",
+                                "detail": "age 33, required at most 35"
+                              },
+                              {
+                                "condition": "firstHome",
+                                "outcome": "Met",
+                                "detail": "first home"
+                              }
+                            ],
+                            "potentialSaving": null,
+                            "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
+                          },
+                          {
+                            "ruleId": "itp_primary_residence_4",
+                            "tax": "TransferTax",
+                            "outcome": "Met",
+                            "applied": false,
+                            "checks": [
+                              {
+                                "condition": "noOtherHome",
+                                "outcome": "Met",
+                                "detail": "owns no other home"
+                              },
+                              {
+                                "condition": "primaryResidence",
+                                "outcome": "Met",
+                                "detail": "primary residence"
+                              }
+                            ],
+                            "potentialSaving": null,
+                            "description": "ITP 4 % for a primary residence on the first 270,151.20 EUR and 8 % on the excess, value up to the island limit (art. 10 c) TR and DA 5.ª)"
+                          }
+                        ]
+                      },
+                      "costs": [
+                        {
+                          "category": "Notary",
+                          "code": "notary_purchase_deed",
+                          "amount": {
+                            "amount": 587.89,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Notary fee for the purchase deed: RD 1426/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus ~150 EUR of copies and folios. Copies and folios are an estimate; the 10 % rebate cited by secondary sources (RDL 6/2000) is not in the consolidated tariff and is not applied",
+                          "estimated": true,
+                          "sourceUrl": "https://www.boe.es/eli/es/rd/1989/11/17/1426/con"
+                        },
+                        {
+                          "category": "LandRegistry",
+                          "code": "registry_purchase",
+                          "amount": {
+                            "amount": 233.21,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Land registry fee for the purchase: RD 1427/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus the nota simple. The 2,181.67 EUR cap is formulated for the global tariff and may not apply per property; it only binds above ~7 M EUR",
+                          "estimated": true,
+                          "sourceUrl": "https://boe.es/buscar/pdf/1989/BOE-A-1989-28112-consolidado.pdf"
+                        },
+                        {
+                          "category": "Gestoria",
+                          "code": "gestoria",
+                          "amount": {
+                            "amount": 400,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Gestoria for the purchase deed (market estimate)",
+                          "estimated": true,
+                          "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                        },
+                        {
+                          "category": "Appraisal",
+                          "code": "appraisal",
+                          "amount": {
+                            "amount": 450,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Official appraisal paid by the borrower (Ley 5/2019; market estimate)",
+                          "estimated": true,
+                          "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                        },
+                        {
+                          "category": "Renovation",
+                          "code": "renovation",
+                          "amount": {
+                            "amount": 12000,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Renovation budget provided",
+                          "estimated": false,
+                          "sourceUrl": null
+                        },
+                        {
+                          "category": "RenovationContingency",
+                          "code": "renovationContingency",
+                          "amount": {
+                            "amount": 1200.0,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Contingency 10 % of the renovation",
+                          "estimated": true,
+                          "sourceUrl": null
+                        }
+                      ],
+                      "totalAcquisitionCost": {
+                        "amount": 264771.1,
+                        "currency": "EUR"
+                      },
+                      "loan": {
+                        "amount": 196000.0,
+                        "currency": "EUR"
+                      },
+                      "loanToValue": 0.8,
+                      "guaranteeProgramId": null,
+                      "cashNeeded": {
+                        "amount": 68771.1,
+                        "currency": "EUR"
+                      },
+                      "savings": {
+                        "amount": 75000,
+                        "currency": "EUR"
+                      },
+                      "remainingSavings": {
+                        "amount": 6228.9,
+                        "currency": "EUR"
+                      },
+                      "payments": [
+                        {
+                          "scenario": "base",
+                          "euriborPercent": 3.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 749.2,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 3.889,
+                              "monthlyPayment": {
+                                "amount": 868.34,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 868.34,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 102305.04,
+                            "currency": "EUR"
+                          }
+                        },
+                        {
+                          "scenario": "plus1",
+                          "euriborPercent": 4.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 749.2,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 4.889,
+                              "monthlyPayment": {
+                                "amount": 946.02,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 946.02,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 120949.52,
+                            "currency": "EUR"
+                          }
+                        },
+                        {
+                          "scenario": "plus2",
+                          "euriborPercent": 5.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 749.2,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 5.889,
+                              "monthlyPayment": {
+                                "amount": 1027.34,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 1027.34,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 140465.93,
+                            "currency": "EUR"
+                          }
+                        }
+                      ],
+                      "debtToIncome": 0.2714,
+                      "stressScenario": "plus2",
+                      "stressDebtToIncome": 0.321,
+                      "ageAtLoanMaturity": 63,
+                      "warnings": [
+                        "Cadastral reference value unknown; the tax base uses the price (the real base is the higher of both)",
+                        "Loan-to-value applied over the price; the bank uses the lower of price and appraisal"
+                      ]
+                    },
+                    "withGuarantee": {
+                      "verdict": "Borderline",
+                      "reasons": [
+                        {
+                          "code": "StressScenarioAboveLimit",
+                          "blocking": false,
+                          "message": "Under the plus2 Euríbor scenario the debt-to-income rises to 40.13 %",
+                          "amount": null,
+                          "ratio": 0.4013
+                        }
+                      ],
+                      "purchaseKind": "Resale",
+                      "price": {
+                        "amount": 245000,
+                        "currency": "EUR"
+                      },
+                      "taxableValue": {
+                        "amount": 245000,
+                        "currency": "EUR"
+                      },
+                      "location": {
+                        "jurisdiction": "ES-IB",
+                        "subdivisionCode": "MALLORCA",
+                        "subdivisionName": "Mallorca",
+                        "assumed": false,
+                        "valueLimit": 331859.7
+                      },
+                      "taxes": {
+                        "total": {
+                          "amount": 4900.0,
+                          "currency": "EUR"
+                        },
+                        "lines": [
+                          {
+                            "tax": "TransferTax",
+                            "ruleId": "itp_under36_first_home_2",
+                            "taxBase": {
+                              "amount": 245000,
+                              "currency": "EUR"
+                            },
+                            "quota": {
+                              "amount": 4900.0,
+                              "currency": "EUR"
+                            },
+                            "effectiveRate": 0.02,
+                            "explanation": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)",
+                            "bonusRuleId": null,
+                            "bonusAmount": {
+                              "amount": 0,
+                              "currency": "EUR"
+                            },
+                            "sourceUrl": "https://www.boe.es/buscar/pdf/2014/BOE-A-2014-6925-consolidado.pdf"
+                          }
+                        ],
+                        "reliefs": [
+                          {
+                            "ruleId": "itp_under36_first_home_2",
+                            "tax": "TransferTax",
+                            "outcome": "Met",
+                            "applied": true,
+                            "checks": [
+                              {
+                                "condition": "ageMax",
+                                "outcome": "Met",
+                                "detail": "age 33, required at most 35"
+                              },
+                              {
+                                "condition": "firstHome",
+                                "outcome": "Met",
+                                "detail": "first home"
+                              }
+                            ],
+                            "potentialSaving": null,
+                            "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
+                          },
+                          {
+                            "ruleId": "itp_primary_residence_4",
+                            "tax": "TransferTax",
+                            "outcome": "Met",
+                            "applied": false,
+                            "checks": [
+                              {
+                                "condition": "noOtherHome",
+                                "outcome": "Met",
+                                "detail": "owns no other home"
+                              },
+                              {
+                                "condition": "primaryResidence",
+                                "outcome": "Met",
+                                "detail": "primary residence"
+                              }
+                            ],
+                            "potentialSaving": null,
+                            "description": "ITP 4 % for a primary residence on the first 270,151.20 EUR and 8 % on the excess, value up to the island limit (art. 10 c) TR and DA 5.ª)"
+                          }
+                        ]
+                      },
+                      "costs": [
+                        {
+                          "category": "Notary",
+                          "code": "notary_purchase_deed",
+                          "amount": {
+                            "amount": 587.89,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Notary fee for the purchase deed: RD 1426/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus ~150 EUR of copies and folios. Copies and folios are an estimate; the 10 % rebate cited by secondary sources (RDL 6/2000) is not in the consolidated tariff and is not applied",
+                          "estimated": true,
+                          "sourceUrl": "https://www.boe.es/eli/es/rd/1989/11/17/1426/con"
+                        },
+                        {
+                          "category": "LandRegistry",
+                          "code": "registry_purchase",
+                          "amount": {
+                            "amount": 233.21,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Land registry fee for the purchase: RD 1427/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus the nota simple. The 2,181.67 EUR cap is formulated for the global tariff and may not apply per property; it only binds above ~7 M EUR",
+                          "estimated": true,
+                          "sourceUrl": "https://boe.es/buscar/pdf/1989/BOE-A-1989-28112-consolidado.pdf"
+                        },
+                        {
+                          "category": "Gestoria",
+                          "code": "gestoria",
+                          "amount": {
+                            "amount": 400,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Gestoria for the purchase deed (market estimate)",
+                          "estimated": true,
+                          "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                        },
+                        {
+                          "category": "Appraisal",
+                          "code": "appraisal",
+                          "amount": {
+                            "amount": 450,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Official appraisal paid by the borrower (Ley 5/2019; market estimate)",
+                          "estimated": true,
+                          "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                        },
+                        {
+                          "category": "Renovation",
+                          "code": "renovation",
+                          "amount": {
+                            "amount": 12000,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Renovation budget provided",
+                          "estimated": false,
+                          "sourceUrl": null
+                        },
+                        {
+                          "category": "RenovationContingency",
+                          "code": "renovationContingency",
+                          "amount": {
+                            "amount": 1200.0,
+                            "currency": "EUR"
+                          },
+                          "explanation": "Contingency 10 % of the renovation",
+                          "estimated": true,
+                          "sourceUrl": null
+                        }
+                      ],
+                      "totalAcquisitionCost": {
+                        "amount": 264771.1,
+                        "currency": "EUR"
+                      },
+                      "loan": {
+                        "amount": 245000.0,
+                        "currency": "EUR"
+                      },
+                      "loanToValue": 1.0,
+                      "guaranteeProgramId": "ico_state_guarantee",
+                      "cashNeeded": {
+                        "amount": 19771.1,
+                        "currency": "EUR"
+                      },
+                      "savings": {
+                        "amount": 75000,
+                        "currency": "EUR"
+                      },
+                      "remainingSavings": {
+                        "amount": 55228.9,
+                        "currency": "EUR"
+                      },
+                      "payments": [
+                        {
+                          "scenario": "base",
+                          "euriborPercent": 3.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 936.5,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 3.889,
+                              "monthlyPayment": {
+                                "amount": 1085.42,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 1085.42,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 127881.31,
+                            "currency": "EUR"
+                          }
+                        },
+                        {
+                          "scenario": "plus1",
+                          "euriborPercent": 4.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 936.5,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 4.889,
+                              "monthlyPayment": {
+                                "amount": 1182.53,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 1182.53,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 151186.9,
+                            "currency": "EUR"
+                          }
+                        },
+                        {
+                          "scenario": "plus2",
+                          "euriborPercent": 5.239,
+                          "periods": [
+                            {
+                              "fromMonth": 1,
+                              "toMonth": 120,
+                              "annualRatePercent": 2.25,
+                              "monthlyPayment": {
+                                "amount": 936.5,
+                                "currency": "EUR"
+                              }
+                            },
+                            {
+                              "fromMonth": 121,
+                              "toMonth": 360,
+                              "annualRatePercent": 5.889,
+                              "monthlyPayment": {
+                                "amount": 1284.18,
+                                "currency": "EUR"
+                              }
+                            }
+                          ],
+                          "maxMonthlyPayment": {
+                            "amount": 1284.18,
+                            "currency": "EUR"
+                          },
+                          "totalInterest": {
+                            "amount": 175582.42,
+                            "currency": "EUR"
+                          }
+                        }
+                      ],
+                      "debtToIncome": 0.3392,
+                      "stressScenario": "plus2",
+                      "stressDebtToIncome": 0.4013,
+                      "ageAtLoanMaturity": 63,
+                      "warnings": [
+                        "Cadastral reference value unknown; the tax base uses the price (the real base is the higher of both)",
+                        "Loan-to-value applied over the price; the bank uses the lower of price and appraisal"
+                      ]
+                    },
+                    "aid": [
+                      {
+                        "programId": "ico_state_guarantee",
+                        "name": "Aval ICO primera vivienda",
+                        "kind": "LoanGuarantee",
+                        "outcome": "Met",
+                        "checks": [
+                          {
+                            "condition": "noOtherHome",
+                            "outcome": "Met",
+                            "detail": "owns no other home"
+                          },
+                          {
+                            "condition": "primaryResidence",
+                            "outcome": "Met",
+                            "detail": "primary residence"
+                          }
+                        ],
+                        "maxLoanToValue": 1.0,
+                        "grantAmount": null,
+                        "budgetLimited": false,
+                        "verified": true,
+                        "sourceUrl": "https://www.boe.es/boe/dias/2026/07/02/pdfs/BOE-A-2026-14404.pdf",
+                        "note": "Balearic income limit 7.5 × IPREM per buyer (ICO note 2026-06-24); +0.3 × IPREM per minor not applied. Not combinable with IBAVI in the same loan according to the press (unregulated)"
+                      },
+                      {
+                        "programId": "ibavi_nova_hipoteca_jove",
+                        "name": "IBAVI Nova Hipoteca Jove",
+                        "kind": "LoanGuarantee",
+                        "outcome": "Met",
+                        "checks": [
+                          {
+                            "condition": "noOtherHome",
+                            "outcome": "Met",
+                            "detail": "owns no other home"
+                          },
+                          {
+                            "condition": "primaryResidence",
+                            "outcome": "Met",
+                            "detail": "primary residence"
+                          }
+                        ],
+                        "maxLoanToValue": 1.0,
+                        "grantAmount": null,
+                        "budgetLimited": false,
+                        "verified": true,
+                        "sourceUrl": "https://www.caib.es/sites/nova_hipoteca_jove/es/requisitos/",
+                        "note": "Guarantee of 20 % of the price (all buyers under 40 or family/disability) or 15 %; the bank must lend at least 80 %. Subject to the programme budget"
+                      }
+                    ],
+                    "maximumPrice": {
+                      "price": {
+                        "amount": 267136.84,
+                        "currency": "EUR"
+                      },
+                      "target": "Affordable",
+                      "bindingConstraints": [
+                        {
+                          "code": "StressScenarioAboveLimit",
+                          "blocking": false,
+                          "message": "Under the plus2 Euríbor scenario the debt-to-income rises to 35.01 %",
+                          "amount": null,
+                          "ratio": 0.3501
+                        }
+                      ]
+                    },
+                    "maximumPriceWithGuarantee": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/affordability/maximum-price": {
+      "post": {
+        "tags": [
+          "Analysis"
+        ],
+        "summary": "Highest price a financing profile can pay.",
+        "description": "Inverse calculation: the highest price the profile can pay with verdict `Affordable` (or `Borderline` with `minimumVerdict`),\ntaxes and closing costs included, for a resale or new-build home in a municipality, optionally keeping a renovation budget on\ntop.\n\nEvery constraint grows with the price — cash needed (deposit, taxes, fees), debt-to-income — and taxes only jump upwards (for\nexample when the value crosses the island limit and the reduced rate is lost), so the set of affordable prices is an interval.\nThe engine finds its upper end by doubling from 50,000 EUR and then bisecting to the cent; the price returned is affordable\nand one cent more is not. `bindingConstraints` tells what limits it (usually the savings shortfall or the debt-to-income).\n\nWith `includeGuarantees`, each candidate price is evaluated with the best ICO or IBAVI guarantee the buyer qualifies for at\nthat price (IBAVI requires a price up to 382,744.84 EUR). `atMaximum` holds the full analysis at the maximum price.",
+        "operationId": "calculateMaximumAffordablePrice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaximumPriceRequestDto"
+              },
+              "example": {
+                "municipality": "Inca",
+                "purchaseKind": "Resale",
+                "includeGuarantees": true,
+                "minimumVerdict": "Borderline",
+                "financing": {
+                  "savings": {
+                    "amount": 30000,
+                    "currency": "EUR"
+                  },
+                  "netMonthlyIncome": {
+                    "amount": 3200,
+                    "currency": "EUR"
+                  },
+                  "maxDebtToIncomeRatio": 0.35,
+                  "mortgage": {
+                    "type": "Fixed",
+                    "maxLoanToValue": 0.8,
+                    "nominalRatePercent": 2.75,
+                    "termMonths": 360
+                  },
+                  "buyer": {
+                    "age": 33,
+                    "firstHome": true,
+                    "primaryResidence": true,
+                    "residentInBalearics": true,
+                    "yearsResidentInBalearics": 8,
+                    "grossAnnualIncome": 46000,
+                    "netWorth": 70000
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaximumPriceResultDto"
+                },
+                "example": {
+                  "configuration": {
+                    "businessConfigVersionId": "01a1ded1-4355-71c1-80c4-b45dbe7aebee",
+                    "businessConfigValidFrom": "2026-11-01",
+                    "businessConfigRevision": 1,
+                    "taxRuleSets": [
+                      {
+                        "id": "01a1ded1-4347-7f12-a8d6-00f4fdaf69db",
+                        "jurisdiction": "ES",
+                        "validFrom": "2026-06-14",
+                        "revision": 1
+                      },
+                      {
+                        "id": "01a1ded1-4322-7735-9374-9a15d56f3232",
+                        "jurisdiction": "ES-IB",
+                        "validFrom": "2026-06-14",
+                        "revision": 1
+                      }
+                    ],
+                    "on": "2026-11-15"
+                  },
+                  "maximum": {
+                    "price": {
+                      "amount": 297903.55,
+                      "currency": "EUR"
+                    },
+                    "target": "Borderline",
+                    "bindingConstraints": [
+                      {
+                        "code": "DebtToIncomeAboveLimit",
+                        "blocking": true,
+                        "message": "Debt-to-income 38.01 % exceeds the 35 % limit",
+                        "amount": null,
+                        "ratio": 0.3801
+                      }
+                    ]
+                  },
+                  "atMaximum": {
+                    "verdict": "Borderline",
+                    "reasons": [
+                      {
+                        "code": "DebtToIncomeAboveLimit",
+                        "blocking": false,
+                        "message": "Debt-to-income 38 % exceeds the 35 % limit",
+                        "amount": null,
+                        "ratio": 0.38
+                      }
+                    ],
+                    "purchaseKind": "Resale",
+                    "price": {
+                      "amount": 297903.55,
+                      "currency": "EUR"
+                    },
+                    "taxableValue": {
+                      "amount": 297903.55,
+                      "currency": "EUR"
+                    },
+                    "location": {
+                      "jurisdiction": "ES-IB",
+                      "subdivisionCode": "MALLORCA",
+                      "subdivisionName": "Mallorca",
+                      "assumed": false,
+                      "valueLimit": 331859.7
+                    },
+                    "taxes": {
+                      "total": {
+                        "amount": 7623.21,
+                        "currency": "EUR"
+                      },
+                      "lines": [
+                        {
+                          "tax": "TransferTax",
+                          "ruleId": "itp_under36_first_home_2",
+                          "taxBase": {
+                            "amount": 297903.55,
+                            "currency": "EUR"
+                          },
+                          "quota": {
+                            "amount": 7623.21,
+                            "currency": "EUR"
+                          },
+                          "effectiveRate": 0.02559,
+                          "explanation": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)",
+                          "bonusRuleId": null,
+                          "bonusAmount": {
+                            "amount": 0,
+                            "currency": "EUR"
+                          },
+                          "sourceUrl": "https://www.boe.es/buscar/pdf/2014/BOE-A-2014-6925-consolidado.pdf"
+                        }
+                      ],
+                      "reliefs": [
+                        {
+                          "ruleId": "itp_under36_first_home_2",
+                          "tax": "TransferTax",
+                          "outcome": "Met",
+                          "applied": true,
+                          "checks": [
+                            {
+                              "condition": "ageMax",
+                              "outcome": "Met",
+                              "detail": "age 33, required at most 35"
+                            },
+                            {
+                              "condition": "firstHome",
+                              "outcome": "Met",
+                              "detail": "first home"
+                            }
+                          ],
+                          "potentialSaving": null,
+                          "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
+                        },
+                        {
+                          "ruleId": "itp_primary_residence_4",
+                          "tax": "TransferTax",
+                          "outcome": "Met",
+                          "applied": false,
+                          "checks": [
+                            {
+                              "condition": "noOtherHome",
+                              "outcome": "Met",
+                              "detail": "owns no other home"
+                            },
+                            {
+                              "condition": "primaryResidence",
+                              "outcome": "Met",
+                              "detail": "primary residence"
+                            }
+                          ],
+                          "potentialSaving": null,
+                          "description": "ITP 4 % for a primary residence on the first 270,151.20 EUR and 8 % on the excess, value up to the island limit (art. 10 c) TR and DA 5.ª)"
+                        }
+                      ]
+                    },
+                    "costs": [
+                      {
+                        "category": "Notary",
+                        "code": "notary_purchase_deed",
+                        "amount": {
+                          "amount": 618.29,
+                          "currency": "EUR"
+                        },
+                        "explanation": "Notary fee for the purchase deed: RD 1426/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus ~150 EUR of copies and folios. Copies and folios are an estimate; the 10 % rebate cited by secondary sources (RDL 6/2000) is not in the consolidated tariff and is not applied",
+                        "estimated": true,
+                        "sourceUrl": "https://www.boe.es/eli/es/rd/1989/11/17/1426/con"
+                      },
+                      {
+                        "category": "LandRegistry",
+                        "code": "registry_purchase",
+                        "amount": {
+                          "amount": 251.45,
+                          "currency": "EUR"
+                        },
+                        "explanation": "Land registry fee for the purchase: RD 1427/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus the nota simple. The 2,181.67 EUR cap is formulated for the global tariff and may not apply per property; it only binds above ~7 M EUR",
+                        "estimated": true,
+                        "sourceUrl": "https://boe.es/buscar/pdf/1989/BOE-A-1989-28112-consolidado.pdf"
+                      },
+                      {
+                        "category": "Gestoria",
+                        "code": "gestoria",
+                        "amount": {
+                          "amount": 400,
+                          "currency": "EUR"
+                        },
+                        "explanation": "Gestoria for the purchase deed (market estimate)",
+                        "estimated": true,
+                        "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                      },
+                      {
+                        "category": "Appraisal",
+                        "code": "appraisal",
+                        "amount": {
+                          "amount": 450,
+                          "currency": "EUR"
+                        },
+                        "explanation": "Official appraisal paid by the borrower (Ley 5/2019; market estimate)",
+                        "estimated": true,
+                        "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                      }
+                    ],
+                    "totalAcquisitionCost": {
+                      "amount": 307246.5,
+                      "currency": "EUR"
+                    },
+                    "loan": {
+                      "amount": 297903.55,
+                      "currency": "EUR"
+                    },
+                    "loanToValue": 1.0,
+                    "guaranteeProgramId": "ico_state_guarantee",
+                    "cashNeeded": {
+                      "amount": 9342.95,
+                      "currency": "EUR"
+                    },
+                    "savings": {
+                      "amount": 30000,
+                      "currency": "EUR"
+                    },
+                    "remainingSavings": {
+                      "amount": 20657.05,
+                      "currency": "EUR"
+                    },
+                    "payments": [
+                      {
+                        "scenario": "base",
+                        "euriborPercent": 3.239,
+                        "periods": [
+                          {
+                            "fromMonth": 1,
+                            "toMonth": 360,
+                            "annualRatePercent": 2.75,
+                            "monthlyPayment": {
+                              "amount": 1216.16,
+                              "currency": "EUR"
+                            }
+                          }
+                        ],
+                        "maxMonthlyPayment": {
+                          "amount": 1216.16,
+                          "currency": "EUR"
+                        },
+                        "totalInterest": {
+                          "amount": 139915.84,
+                          "currency": "EUR"
+                        }
+                      }
+                    ],
+                    "debtToIncome": 0.38,
+                    "stressScenario": "plus2",
+                    "stressDebtToIncome": 0.38,
+                    "ageAtLoanMaturity": 63,
+                    "warnings": [
+                      "Cadastral reference value unknown; the tax base uses the price (the real base is the higher of both)",
+                      "No renovation cost included"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/business-config": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "summary": "Business configuration valid on a date.",
+        "description": "Business assumptions that are not law and therefore are not tax rules: the Euríbor 12M reference and the scenarios used for\nvariable and mixed mortgages, the stress scenario of the verdict, the Borderline tolerances, the usual maximum age at loan\nmaturity, the renovation contingency and the market estimates of gestoria and appraisal.\n\nThey come from `config/seed/business-config.yaml`, loaded into the database as immutable versions keyed by validity date and\nrevision. Returns the version valid on `on` (today by default): the latest `validFrom` on or before that date, highest\nrevision. Every stored analysis records which version it used.",
+        "operationId": "getBusinessConfig",
+        "parameters": [
+          {
+            "name": "on",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessConfigDto"
+                },
+                "example": {
+                  "id": "01a1ded1-4355-71c1-80c4-b45dbe7aebee",
+                  "validFrom": "2026-11-01",
+                  "revision": 1,
+                  "source": "Euríbor October 2026 (Banco de España press note 2026-11-03); thresholds and estimates from docs/fiscalidad-baleares.md §3.3 and §5",
+                  "loadedAt": "2026-11-15T10:46:58.530935+00:00",
+                  "defaultJurisdiction": "ES-IB",
+                  "euribor": {
+                    "twelveMonthPercent": 3.239,
+                    "month": "2026-10",
+                    "sourceUrl": "https://www.bde.es/f/webbe/GAP/Secciones/SalaPrensa/NotasInformativas/26/presbe2026-104.pdf"
+                  },
+                  "rateScenarios": [
+                    {
+                      "name": "base",
+                      "euriborDeltaPercent": 0
+                    },
+                    {
+                      "name": "plus1",
+                      "euriborDeltaPercent": 1
+                    },
+                    {
+                      "name": "plus2",
+                      "euriborDeltaPercent": 2
+                    }
+                  ],
+                  "stressScenario": "plus2",
+                  "affordability": {
+                    "borderlineCashShortfallMax": 5000,
+                    "borderlineDebtToIncomeTolerance": 0.03,
+                    "maxAgeAtLoanMaturity": 75,
+                    "renovationContingencyPercent": 10
+                  },
+                  "closingCosts": {
+                    "gestoriaEur": 400,
+                    "appraisalEur": 450,
+                    "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/business-config/versions": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "summary": "Every business configuration version.",
+        "description": "Every business configuration version ever loaded, newest first. Versions are immutable: correcting a figure adds a revision,\nso analyses computed with an older revision can still be explained.",
+        "operationId": "listBusinessConfigVersions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BusinessConfigDto"
+                  }
+                },
+                "example": [
+                  {
+                    "id": "01a1ded1-4355-71c1-80c4-b45dbe7aebee",
+                    "validFrom": "2026-11-01",
+                    "revision": 1,
+                    "source": "Euríbor October 2026 (Banco de España press note 2026-11-03); thresholds and estimates from docs/fiscalidad-baleares.md §3.3 and §5",
+                    "loadedAt": "2026-11-15T10:46:58.530935+00:00",
+                    "defaultJurisdiction": "ES-IB",
+                    "euribor": {
+                      "twelveMonthPercent": 3.239,
+                      "month": "2026-10",
+                      "sourceUrl": "https://www.bde.es/f/webbe/GAP/Secciones/SalaPrensa/NotasInformativas/26/presbe2026-104.pdf"
+                    },
+                    "rateScenarios": [
+                      {
+                        "name": "base",
+                        "euriborDeltaPercent": 0
+                      },
+                      {
+                        "name": "plus1",
+                        "euriborDeltaPercent": 1
+                      },
+                      {
+                        "name": "plus2",
+                        "euriborDeltaPercent": 2
+                      }
+                    ],
+                    "stressScenario": "plus2",
+                    "affordability": {
+                      "borderlineCashShortfallMax": 5000,
+                      "borderlineDebtToIncomeTolerance": 0.03,
+                      "maxAgeAtLoanMaturity": 75,
+                      "renovationContingencyPercent": 10
+                    },
+                    "closingCosts": {
+                      "gestoriaEur": 400,
+                      "appraisalEur": 450,
+                      "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tax-rules": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "summary": "Tax rule sets applied on a date.",
+        "description": "Audit view of the tax rules the engine applies: the effective tax rule set of every level of `jurisdiction` (default: the\nbusiness configuration's jurisdiction, `ES-IB`, which also returns `ES`) on date `on` (today by default).\n\nEach set contains the island value limits (`subdivisions`), the rate, scale and bonus rules with their eligibility conditions\nand legal source (`rules`), the notary and land registry tariffs (`fees`) and the aid programmes (`aidPrograms`). Rules marked\n`verified: false` are interpretations pending an official criterion and surface as warnings in analyses. Sets are seeded from\n`config/seed/tax-rules/*.yaml`, validated on load (a set with errors is rejected and logged) and never edited in place.",
+        "operationId": "listTaxRules",
+        "parameters": [
+          {
+            "name": "jurisdiction",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "on",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TaxRuleSetDto"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid X-Api-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded; honour Retry-After.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error; the traceId extension identifies the log entry.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AffordabilityFilterDto": {
+        "type": "object",
+        "properties": {
+          "financingProfileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Financing profile whose maximum affordable price is applied.",
+            "format": "uuid"
+          },
+          "budget": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Total budget: price + taxes + closing costs must fit in it.",
+                "$ref": "#/components/schemas/MoneyDto"
+              }
+            ]
+          },
+          "minimumVerdict": {
+            "type": "string",
+            "description": "Affordable (default) or Borderline."
+          },
+          "includeGuarantees": {
+            "type": "boolean",
+            "description": "Count an eligible ICO or IBAVI guarantee when it raises the loan-to-value."
+          }
+        },
+        "description": "Affordability filter. With a profile, a listing passes when its price is at most the profile's maximum affordable price for its island and kind (resale or new build); with a budget, when price + taxes + closing costs fit in it; with both, both limits apply."
+      },
+      "AffordabilityThresholdsDto": {
+        "required": [
+          "borderlineCashShortfallMax",
+          "borderlineDebtToIncomeTolerance",
+          "maxAgeAtLoanMaturity",
+          "renovationContingencyPercent"
+        ],
+        "type": "object",
+        "properties": {
+          "borderlineCashShortfallMax": {
+            "type": "number",
+            "description": "Largest savings shortfall in EUR still considered Borderline.",
+            "format": "decimal"
+          },
+          "borderlineDebtToIncomeTolerance": {
+            "type": "number",
+            "description": "Debt-to-income points above the profile limit still considered Borderline (fraction).",
+            "format": "decimal"
+          },
+          "maxAgeAtLoanMaturity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Usual maximum age at the end of the loan.",
+            "format": "int32"
+          },
+          "renovationContingencyPercent": {
+            "type": "number",
+            "description": "Contingency added to renovation budgets, in %.",
+            "format": "decimal"
+          }
+        },
+        "description": "Verdict thresholds."
+      },
+      "AidAssessmentDto": {
+        "required": [
+          "programId",
+          "name",
+          "kind",
+          "outcome",
+          "checks",
+          "maxLoanToValue",
+          "grantAmount",
+          "budgetLimited",
+          "verified",
+          "sourceUrl",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "programId": {
+            "type": "string",
+            "description": "Programme id, e.g. ibavi_nova_hipoteca_jove."
+          },
+          "name": {
+            "type": "string",
+            "description": "Programme name."
+          },
+          "kind": {
+            "type": "string",
+            "description": "LoanGuarantee or DirectGrant."
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Met, NotMet or Unknown."
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionCheckDto"
+            },
+            "description": "Outcome of every requirement."
+          },
+          "maxLoanToValue": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "For guarantees: loan-to-value it allows for this buyer.",
+            "format": "decimal"
+          },
+          "grantAmount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "For grants: amount paid after the purchase (never counted as cash on signing).",
+                "$ref": "#/components/schemas/MoneyDto"
+              }
+            ]
+          },
+          "budgetLimited": {
+            "type": "boolean",
+            "description": "True when the programme can run out of budget."
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "False when some figure is pending official confirmation."
+          },
+          "sourceUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Official source."
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Caveats."
+          }
+        },
+        "description": "Eligibility for an aid programme."
+      },
+      "AnalysisConfigurationDto": {
+        "required": [
+          "businessConfigVersionId",
+          "businessConfigValidFrom",
+          "businessConfigRevision",
+          "taxRuleSets",
+          "on"
+        ],
+        "type": "object",
+        "properties": {
+          "businessConfigVersionId": {
+            "type": "string",
+            "description": "Business configuration version id (Euríbor, thresholds, closing-cost estimates).",
+            "format": "uuid"
+          },
+          "businessConfigValidFrom": {
+            "examples": [
+              "2026-11-01"
+            ],
+            "type": "string",
+            "description": "Date from which that business configuration applies.",
+            "format": "date"
+          },
+          "businessConfigRevision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Revision of that business configuration.",
+            "format": "int32"
+          },
+          "taxRuleSets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxRuleSetReferenceDto"
+            },
+            "description": "Tax rule sets applied, from the state to the most specific jurisdiction."
+          },
+          "on": {
+            "examples": [
+              "2026-11-15"
+            ],
+            "type": "string",
+            "description": "Calculation date: rules, island limits and aid programmes are those valid on this day.",
+            "format": "date"
+          }
+        },
+        "description": "Configuration versions an analysis was computed with; together with the stored inputs they make it reproducible."
+      },
+      "BusinessConfigDto": {
+        "required": [
+          "id",
+          "validFrom",
+          "revision",
+          "source",
+          "loadedAt",
+          "defaultJurisdiction",
+          "euribor",
+          "rateScenarios",
+          "stressScenario",
+          "affordability",
+          "closingCosts"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Version id; analyses store it.",
+            "format": "uuid"
+          },
+          "validFrom": {
+            "examples": [
+              "2026-11-01"
+            ],
+            "type": "string",
+            "description": "First day this version applies.",
+            "format": "date"
+          },
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Revision within the same validity date; a higher revision replaces a lower one.",
+            "format": "int32"
+          },
+          "source": {
+            "type": "string",
+            "description": "Where the figures come from."
+          },
+          "loadedAt": {
+            "type": "string",
+            "description": "When the version was loaded from the seed files (UTC).",
+            "format": "date-time"
+          },
+          "defaultJurisdiction": {
+            "type": "string",
+            "description": "Jurisdiction whose tax rules apply, e.g. ES-IB."
+          },
+          "euribor": {
+            "description": "Euríbor 12M reference.",
+            "$ref": "#/components/schemas/EuriborDto"
+          },
+          "rateScenarios": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RateScenarioDto"
+            },
+            "description": "Scenarios used for variable and mixed loans: Euríbor reference plus a delta in percentage points."
+          },
+          "stressScenario": {
+            "examples": [
+              "plus2"
+            ],
+            "type": "string",
+            "description": "Scenario used as stress test for the verdict."
+          },
+          "affordability": {
+            "description": "Verdict thresholds.",
+            "$ref": "#/components/schemas/AffordabilityThresholdsDto"
+          },
+          "closingCosts": {
+            "description": "Market estimates of closing costs without an official tariff.",
+            "$ref": "#/components/schemas/ClosingCostEstimatesDto"
+          }
+        },
+        "description": "Version of the business assumptions that are not law: Euríbor reference, stress scenarios, verdict thresholds and closing-cost estimates."
+      },
       "BuyerProfileDto": {
         "required": [
           "age"
@@ -1600,7 +4259,7 @@
               "integer",
               "string"
             ],
-            "description": "Age in years (18–99).",
+            "description": "Age in years (18–99) of the oldest buyer: age limits of reliefs and aid are checked against it.",
             "format": "int32"
           },
           "firstHome": {
@@ -1644,17 +4303,164 @@
             "format": "int32"
           },
           "taxableIncomeBase": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "IRPF taxable base in EUR, needed for the 100 % ITP bonus (limit 52,800 € individual).",
             "format": "decimal"
           },
           "netWorth": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "Net worth in EUR, needed for the ICO guarantee (≤ 150,000 €).",
             "format": "decimal"
+          },
+          "ownsOtherHome": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Owns (≥ 50 %) another home now. When omitted, a first-home buyer is assumed to own none."
+          },
+          "yearsResidentInSpain": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Years of legal residence in Spain (ICO requires 2).",
+            "format": "int32"
+          },
+          "jointTaxReturn": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Files a joint IRPF return (limit 84,480 € instead of 52,800 € for the 100 % bonus)."
+          },
+          "grossAnnualIncome": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Gross annual income of the household in EUR, needed for the ICO and IBAVI guarantees and the 10,000 € grant.",
+            "format": "decimal"
+          },
+          "buyerCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Number of buyers (1–2).",
+            "format": "int32"
+          },
+          "hasDependentChildren": {
+            "type": "boolean",
+            "description": "Has dependent children (ICO guarantee without age limit)."
+          },
+          "disabilityMinimumForRelatives": {
+            "type": "boolean",
+            "description": "Applies the IRPF disability minimum for ascendants or descendants (2 % ITP)."
           }
         },
         "description": "Personal circumstances that decide which tax reductions and aids apply."
+      },
+      "ClosingCostEstimatesDto": {
+        "required": [
+          "gestoriaEur",
+          "appraisalEur",
+          "sourceUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "gestoriaEur": {
+            "type": "number",
+            "description": "Gestoria for the purchase deed, EUR.",
+            "format": "decimal"
+          },
+          "appraisalEur": {
+            "type": "number",
+            "description": "Official appraisal paid by the borrower, EUR.",
+            "format": "decimal"
+          },
+          "sourceUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Where the estimate comes from."
+          }
+        },
+        "description": "Closing-cost estimates."
+      },
+      "ConditionCheckDto": {
+        "required": [
+          "condition",
+          "outcome",
+          "detail"
+        ],
+        "type": "object",
+        "properties": {
+          "condition": {
+            "type": "string",
+            "description": "Requirement, e.g. ageMax or taxableIncomeMax."
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Met, NotMet or Unknown."
+          },
+          "detail": {
+            "type": "string",
+            "description": "Values compared."
+          }
+        },
+        "description": "Outcome of one requirement."
+      },
+      "CostLineDto": {
+        "required": [
+          "category",
+          "code",
+          "amount",
+          "explanation",
+          "estimated",
+          "sourceUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "Notary, LandRegistry, Gestoria, Appraisal, MortgageOpeningFee, GuaranteeFee, Renovation or RenovationContingency."
+          },
+          "code": {
+            "type": "string",
+            "description": "Tariff or programme id."
+          },
+          "amount": {
+            "description": "Amount including VAT.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "explanation": {
+            "type": "string",
+            "description": "How it is computed."
+          },
+          "estimated": {
+            "type": "boolean",
+            "description": "True for market estimates rather than official tariffs."
+          },
+          "sourceUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Source of the tariff or estimate."
+          }
+        },
+        "description": "Cost other than taxes."
       },
       "DecimalRangeDto": {
         "required": [
@@ -1664,17 +4470,141 @@
         "type": "object",
         "properties": {
           "min": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "Lower bound, inclusive.",
             "format": "decimal"
           },
           "max": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "Upper bound, inclusive.",
             "format": "decimal"
           }
         },
         "description": "Range filter with inclusive bounds."
+      },
+      "EuriborDto": {
+        "required": [
+          "twelveMonthPercent",
+          "month",
+          "sourceUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "twelveMonthPercent": {
+            "type": "number",
+            "description": "Monthly average in %, e.g. 3.239.",
+            "format": "decimal"
+          },
+          "month": {
+            "type": "string",
+            "description": "Month of the average, YYYY-MM."
+          },
+          "sourceUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Banco de España source."
+          }
+        },
+        "description": "Euríbor 12M reference."
+      },
+      "FinancialAnalysisDto": {
+        "required": [
+          "base",
+          "aid"
+        ],
+        "type": "object",
+        "properties": {
+          "base": {
+            "description": "Analysis with the profile's own loan-to-value.",
+            "$ref": "#/components/schemas/PurchaseAnalysisDto"
+          },
+          "withGuarantee": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Same purchase financed with the best guarantee programme the buyer qualifies for (ICO or IBAVI), when it raises the loan-to-value; otherwise null.",
+                "$ref": "#/components/schemas/PurchaseAnalysisDto"
+              }
+            ]
+          },
+          "aid": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AidAssessmentDto"
+            },
+            "description": "Eligibility for every aid programme valid on the calculation date."
+          },
+          "maximumPrice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Highest price that keeps the verdict Affordable with the profile's loan-to-value, all other assumptions equal.",
+                "$ref": "#/components/schemas/MaximumPriceDto"
+              }
+            ]
+          },
+          "maximumPriceWithGuarantee": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Same with an eligible guarantee, when it is higher than `maximumPrice`.",
+                "$ref": "#/components/schemas/MaximumPriceDto"
+              }
+            ]
+          }
+        },
+        "description": "Complete financial analysis of a purchase."
+      },
+      "FinancingAssumptionsDto": {
+        "required": [
+          "savings",
+          "netMonthlyIncome",
+          "mortgage",
+          "buyer"
+        ],
+        "type": "object",
+        "properties": {
+          "savings": {
+            "description": "Savings available for deposit and costs.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "netMonthlyIncome": {
+            "description": "Net monthly income of all borrowers.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "existingMonthlyDebt": {
+            "description": "Existing monthly debt payments.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "maxDebtToIncomeRatio": {
+            "type": "number",
+            "description": "Maximum debt-to-income ratio (0.1–0.6).",
+            "format": "decimal"
+          },
+          "mortgage": {
+            "description": "Mortgage assumptions.",
+            "$ref": "#/components/schemas/MortgageTermsDto"
+          },
+          "buyer": {
+            "description": "Buyer circumstances.",
+            "$ref": "#/components/schemas/BuyerProfileDto"
+          }
+        },
+        "description": "Financing assumptions given inline instead of a stored profile."
       },
       "FinancingProfileDto": {
         "required": [
@@ -1907,6 +4837,53 @@
         "description": "Integer range filter with inclusive bounds."
       },
       "JsonElement": { },
+      "ListingAnalysisDto": {
+        "required": [
+          "analysisId",
+          "listingId",
+          "financingProfileId",
+          "calculatedAt",
+          "reused",
+          "configuration",
+          "result"
+        ],
+        "type": "object",
+        "properties": {
+          "analysisId": {
+            "type": "string",
+            "description": "Analysis id; the same inputs return the same stored analysis.",
+            "format": "uuid"
+          },
+          "listingId": {
+            "type": "string",
+            "description": "Listing analysed.",
+            "format": "uuid"
+          },
+          "financingProfileId": {
+            "type": "string",
+            "description": "Financing profile used.",
+            "format": "uuid"
+          },
+          "calculatedAt": {
+            "type": "string",
+            "description": "When the analysis was first computed (UTC).",
+            "format": "date-time"
+          },
+          "reused": {
+            "type": "boolean",
+            "description": "True when an identical earlier analysis (same listing content, profile version and configuration) was returned."
+          },
+          "configuration": {
+            "description": "Configuration versions used.",
+            "$ref": "#/components/schemas/AnalysisConfigurationDto"
+          },
+          "result": {
+            "description": "Result of the analysis.",
+            "$ref": "#/components/schemas/FinancialAnalysisDto"
+          }
+        },
+        "description": "Stored analysis of one listing with one financing profile."
+      },
       "ListingDetailDto": {
         "required": [
           "summary",
@@ -2152,7 +5129,10 @@
             "format": "int32"
           },
           "cumulativeDropPercentMin": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "Minimum cumulative drop in %.",
             "format": "decimal"
           },
@@ -2210,6 +5190,17 @@
           "includeNewBuild": {
             "type": "boolean",
             "description": "Include new-build listings; defaults to true."
+          },
+          "affordability": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Return only what the buyer can pay, taxes and closing costs included (renovation from phase 3). See `calculateMaximumAffordablePrice` for the calculation.",
+                "$ref": "#/components/schemas/AffordabilityFilterDto"
+              }
+            ]
           },
           "sort": {
             "description": "Sort order; defaults to FirstSeenDesc.",
@@ -2309,17 +5300,26 @@
             ]
           },
           "pricePerSquareMetre": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "Price per built square metre in EUR, when both figures are known.",
             "format": "decimal"
           },
           "builtSquareMetres": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "Built area in m².",
             "format": "decimal"
           },
           "usableSquareMetres": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "Usable area in m² when published.",
             "format": "decimal"
           },
@@ -2432,6 +5432,172 @@
         },
         "description": "Compact listing representation used in lists and search results."
       },
+      "LocationDto": {
+        "required": [
+          "jurisdiction",
+          "subdivisionCode",
+          "subdivisionName",
+          "assumed",
+          "valueLimit"
+        ],
+        "type": "object",
+        "properties": {
+          "jurisdiction": {
+            "type": "string",
+            "description": "ISO 3166-2 code, e.g. ES-IB."
+          },
+          "subdivisionCode": {
+            "type": "string",
+            "description": "Island code: MALLORCA, MENORCA, EIVISSA or FORMENTERA."
+          },
+          "subdivisionName": {
+            "type": "string",
+            "description": "Island name."
+          },
+          "assumed": {
+            "type": "boolean",
+            "description": "True when the municipality was unknown or not recognised and the default island was assumed."
+          },
+          "valueLimit": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Island value limit in EUR for the reduced rates on the calculation date (DA 5.ª TR).",
+            "format": "decimal"
+          }
+        },
+        "description": "Where the tax rules were resolved."
+      },
+      "MaximumPriceDto": {
+        "required": [
+          "price",
+          "target",
+          "bindingConstraints"
+        ],
+        "type": "object",
+        "properties": {
+          "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Maximum price; null when no price from 1,000 EUR reaches the target.",
+                "$ref": "#/components/schemas/MoneyDto"
+              }
+            ]
+          },
+          "target": {
+            "type": "string",
+            "description": "Verdict required: Affordable or Borderline."
+          },
+          "bindingConstraints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictReasonDto"
+            },
+            "description": "Reasons that appear one cent above the maximum: what limits the price."
+          }
+        },
+        "description": "Highest price that keeps the target verdict, found by bisection to the cent."
+      },
+      "MaximumPriceRequestDto": {
+        "type": "object",
+        "properties": {
+          "financingProfileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Stored profile to use; when both this and `financing` are absent the default profile is used.",
+            "format": "uuid"
+          },
+          "financing": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Inline financing assumptions; take precedence over `financingProfileId`.",
+                "$ref": "#/components/schemas/FinancingAssumptionsDto"
+              }
+            ]
+          },
+          "purchaseKind": {
+            "type": "string",
+            "description": "Resale or NewBuild."
+          },
+          "propertyType": {
+            "type": "string",
+            "description": "Property type."
+          },
+          "municipality": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Municipality; decides the island value limit."
+          },
+          "renovationCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Renovation budget to keep on top of the price.",
+                "$ref": "#/components/schemas/MoneyDto"
+              }
+            ]
+          },
+          "includeGuarantees": {
+            "type": "boolean",
+            "description": "Use an eligible ICO or IBAVI guarantee when it raises the loan-to-value."
+          },
+          "minimumVerdict": {
+            "type": "string",
+            "description": "Affordable (default) or Borderline."
+          },
+          "on": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Calculation date; defaults to today.",
+            "format": "date"
+          }
+        },
+        "description": "Inverse calculation: highest price the profile can pay."
+      },
+      "MaximumPriceResultDto": {
+        "required": [
+          "configuration",
+          "maximum"
+        ],
+        "type": "object",
+        "properties": {
+          "configuration": {
+            "description": "Configuration versions used.",
+            "$ref": "#/components/schemas/AnalysisConfigurationDto"
+          },
+          "maximum": {
+            "description": "Maximum price and what limits it.",
+            "$ref": "#/components/schemas/MaximumPriceDto"
+          },
+          "atMaximum": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Full analysis at the maximum price; null when there is none.",
+                "$ref": "#/components/schemas/PurchaseAnalysisDto"
+              }
+            ]
+          }
+        },
+        "description": "Highest affordable price with the analysis at that price."
+      },
       "MoneyDto": {
         "required": [
           "amount"
@@ -2469,12 +5635,18 @@
             "format": "decimal"
           },
           "nominalRatePercent": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "Annual nominal rate in % for Fixed, or the fixed leg of Mixed, e.g. 2.9.",
             "format": "decimal"
           },
           "spreadPercent": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "description": "Spread over Euríbor in % for Variable or Mixed.",
             "format": "decimal"
           },
@@ -2496,6 +5668,14 @@
             ],
             "description": "Term in months (60–480).",
             "format": "int32"
+          },
+          "openingFeePercent": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Opening fee in % of the loan, if the bank charges one.",
+            "format": "decimal"
           }
         },
         "description": "Mortgage offer assumed for affordability calculations."
@@ -2557,6 +5737,82 @@
           }
         },
         "description": "Cursor-paginated envelope shared by every list operation."
+      },
+      "PaymentPeriodDto": {
+        "required": [
+          "fromMonth",
+          "toMonth",
+          "annualRatePercent",
+          "monthlyPayment"
+        ],
+        "type": "object",
+        "properties": {
+          "fromMonth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "First month (1-based).",
+            "format": "int32"
+          },
+          "toMonth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Last month, inclusive.",
+            "format": "int32"
+          },
+          "annualRatePercent": {
+            "type": "number",
+            "description": "Nominal annual rate in %.",
+            "format": "decimal"
+          },
+          "monthlyPayment": {
+            "description": "Monthly payment.",
+            "$ref": "#/components/schemas/MoneyDto"
+          }
+        },
+        "description": "Months with the same payment."
+      },
+      "PaymentScheduleDto": {
+        "required": [
+          "scenario",
+          "euriborPercent",
+          "periods",
+          "maxMonthlyPayment",
+          "totalInterest"
+        ],
+        "type": "object",
+        "properties": {
+          "scenario": {
+            "type": "string",
+            "description": "Scenario name, e.g. base, plus1, plus2."
+          },
+          "euriborPercent": {
+            "type": "number",
+            "description": "Euríbor 12M in % in this scenario.",
+            "format": "decimal"
+          },
+          "periods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentPeriodDto"
+            },
+            "description": "Periods with a constant payment."
+          },
+          "maxMonthlyPayment": {
+            "description": "Highest monthly payment of the schedule.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "totalInterest": {
+            "description": "Interest paid over the whole term.",
+            "$ref": "#/components/schemas/MoneyDto"
+          }
+        },
+        "description": "Monthly payments under one Euríbor scenario."
       },
       "PhotoDto": {
         "required": [
@@ -2628,6 +5884,153 @@
           }
         }
       },
+      "PurchaseAnalysisDto": {
+        "required": [
+          "verdict",
+          "reasons",
+          "purchaseKind",
+          "price",
+          "taxableValue",
+          "location",
+          "taxes",
+          "costs",
+          "totalAcquisitionCost",
+          "loan",
+          "loanToValue",
+          "cashNeeded",
+          "savings",
+          "remainingSavings",
+          "payments",
+          "debtToIncome",
+          "stressScenario",
+          "stressDebtToIncome",
+          "ageAtLoanMaturity",
+          "warnings"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "examples": [
+              "Affordable"
+            ],
+            "type": "string",
+            "description": "Affordable, Borderline or NotAffordable. Affordable: savings cover deposit, taxes and costs, and the payment stays within the debt-to-income limit (also under the stress scenario for variable and mixed loans). Borderline: a small gap (cash shortfall up to the configured tolerance, debt-to-income up to the limit plus the tolerance, the stress scenario over the limit, or a loan ending after the usual maximum age). NotAffordable: any larger gap."
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictReasonDto"
+            },
+            "description": "Why the verdict is not Affordable; empty when it is."
+          },
+          "purchaseKind": {
+            "type": "string",
+            "description": "Resale (transfer tax) or NewBuild (VAT and stamp duty)."
+          },
+          "price": {
+            "description": "Price analysed.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "taxableValue": {
+            "description": "Tax base for transfer tax and stamp duty: the higher of price and cadastral reference value (art. 10 TRLITPAJD).",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "location": {
+            "description": "Jurisdiction and island used for the tax rules.",
+            "$ref": "#/components/schemas/LocationDto"
+          },
+          "taxes": {
+            "description": "Taxes due and the reliefs considered.",
+            "$ref": "#/components/schemas/TaxAssessmentDto"
+          },
+          "costs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CostLineDto"
+            },
+            "description": "Closing costs, guarantee fees and renovation, excluding taxes."
+          },
+          "totalAcquisitionCost": {
+            "description": "Price + taxes + every cost line.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "loan": {
+            "description": "Mortgage amount: price × loan-to-value (appraisal assumed equal to price).",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "loanToValue": {
+            "examples": [
+              0.8
+            ],
+            "type": "number",
+            "description": "Loan-to-value applied, as a fraction (0–1).",
+            "format": "decimal"
+          },
+          "guaranteeProgramId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Guarantee programme behind the loan-to-value, when any."
+          },
+          "cashNeeded": {
+            "description": "Cash needed on signing day: total acquisition cost − loan.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "savings": {
+            "description": "Savings of the profile.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "remainingSavings": {
+            "description": "Savings left after signing; negative means a shortfall.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentScheduleDto"
+            },
+            "description": "Payment schedules: one for fixed loans; one per Euríbor scenario for variable and mixed loans. Monthly payment = L·i / (1 − (1 + i)^−n) with i = annual rate / 12 and n months; after the initial period the outstanding balance is re-amortised at Euríbor + spread."
+          },
+          "debtToIncome": {
+            "examples": [
+              0.2775
+            ],
+            "type": "number",
+            "description": "(Highest monthly payment in the base scenario + existing debts) / net monthly income.",
+            "format": "decimal"
+          },
+          "stressScenario": {
+            "examples": [
+              "plus2"
+            ],
+            "type": "string",
+            "description": "Euríbor scenario used as stress test."
+          },
+          "stressDebtToIncome": {
+            "type": "number",
+            "description": "Debt-to-income under the stress scenario.",
+            "format": "decimal"
+          },
+          "ageAtLoanMaturity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Buyer's age when the loan ends.",
+            "format": "int32"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Assumptions and data gaps to keep in mind (unknown cadastral value, interpretations pending confirmation…)."
+          }
+        },
+        "description": "Cost, financing and verdict of one way of financing a purchase."
+      },
       "RadiusDto": {
         "required": [
           "latitude",
@@ -2665,6 +6068,81 @@
           }
         },
         "description": "Circle around a point."
+      },
+      "RateScenarioDto": {
+        "required": [
+          "name",
+          "euriborDeltaPercent"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Scenario name."
+          },
+          "euriborDeltaPercent": {
+            "type": "number",
+            "description": "Percentage points added to the reference.",
+            "format": "decimal"
+          }
+        },
+        "description": "Euríbor scenario."
+      },
+      "ReliefAssessmentDto": {
+        "required": [
+          "ruleId",
+          "tax",
+          "outcome",
+          "applied",
+          "checks",
+          "potentialSaving",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "ruleId": {
+            "type": "string",
+            "description": "Rule id."
+          },
+          "tax": {
+            "type": "string",
+            "description": "Tax it reduces."
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Met, NotMet or Unknown (some requirement cannot be checked with the profile data)."
+          },
+          "applied": {
+            "type": "boolean",
+            "description": "Whether it was the option finally applied."
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionCheckDto"
+            },
+            "description": "Outcome of every requirement."
+          },
+          "potentialSaving": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "For Unknown outcomes: how much less tax would be paid if the missing requirements were met.",
+                "$ref": "#/components/schemas/MoneyDto"
+              }
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "What the rule grants."
+          }
+        },
+        "description": "Reduced rate or bonus that was evaluated."
       },
       "SearchProfileDto": {
         "required": [
@@ -2766,6 +6244,128 @@
           }
         },
         "description": "Input to create or replace a saved search."
+      },
+      "SimulationRequestDto": {
+        "required": [
+          "price"
+        ],
+        "type": "object",
+        "properties": {
+          "price": {
+            "description": "Price to analyse.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "purchaseKind": {
+            "examples": [
+              "Resale"
+            ],
+            "type": "string",
+            "description": "Resale or NewBuild."
+          },
+          "propertyType": {
+            "type": "string",
+            "description": "Property type: Flat, House, Townhouse, Finca, Penthouse, Studio, Garage…"
+          },
+          "housingRegime": {
+            "type": "string",
+            "description": "FreeMarket, PriceLimited (VPL), ProtectedSpecialRegime (VPO special regime) or AppraisedPrice."
+          },
+          "municipality": {
+            "examples": [
+              "Inca"
+            ],
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Municipality; decides the island value limit. Unknown names assume Mallorca."
+          },
+          "cadastralReferenceValue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Cadastral reference value, when known; the tax base is the higher of price and this value.",
+                "$ref": "#/components/schemas/MoneyDto"
+              }
+            ]
+          },
+          "renovationCost": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Renovation budget; a contingency percentage from the business configuration is added.",
+                "$ref": "#/components/schemas/MoneyDto"
+              }
+            ]
+          },
+          "financingProfileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Stored profile to use; when both this and `financing` are absent the default profile is used.",
+            "format": "uuid"
+          },
+          "financing": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Inline financing assumptions; take precedence over `financingProfileId`.",
+                "$ref": "#/components/schemas/FinancingAssumptionsDto"
+              }
+            ]
+          },
+          "euriborPercent": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Euríbor 12M in % to use instead of the configured reference.",
+            "format": "decimal"
+          },
+          "on": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Calculation date (rules, island limits and aid valid that day); defaults to today.",
+            "format": "date"
+          }
+        },
+        "description": "Free simulation of a purchase."
+      },
+      "SimulationResultDto": {
+        "required": [
+          "configuration",
+          "euriborPercent",
+          "result"
+        ],
+        "type": "object",
+        "properties": {
+          "configuration": {
+            "description": "Configuration versions used.",
+            "$ref": "#/components/schemas/AnalysisConfigurationDto"
+          },
+          "euriborPercent": {
+            "examples": [
+              3.239
+            ],
+            "type": "number",
+            "description": "Euríbor 12M in % used for variable and mixed payments, after any override.",
+            "format": "decimal"
+          },
+          "result": {
+            "description": "Result of the analysis.",
+            "$ref": "#/components/schemas/FinancialAnalysisDto"
+          }
+        },
+        "description": "Result of a free simulation (no listing involved)."
       },
       "SourceDto": {
         "required": [
@@ -2974,6 +6574,234 @@
         },
         "description": "One execution of a source."
       },
+      "TaxAssessmentDto": {
+        "required": [
+          "total",
+          "lines",
+          "reliefs"
+        ],
+        "type": "object",
+        "properties": {
+          "total": {
+            "description": "Sum of every tax line.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaxLineDto"
+            },
+            "description": "One line per tax: TransferTax (ITP) for resale; ValueAddedTax (IVA) and StampDuty (AJD) for new homes."
+          },
+          "reliefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReliefAssessmentDto"
+            },
+            "description": "Every reduced rate and bonus considered, with the outcome of each requirement."
+          }
+        },
+        "description": "Taxes due on the purchase."
+      },
+      "TaxLineDto": {
+        "required": [
+          "tax",
+          "ruleId",
+          "taxBase",
+          "quota",
+          "effectiveRate",
+          "explanation",
+          "bonusRuleId",
+          "bonusAmount",
+          "sourceUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "tax": {
+            "type": "string",
+            "description": "TransferTax, ValueAddedTax or StampDuty."
+          },
+          "ruleId": {
+            "type": "string",
+            "description": "Rule applied, e.g. itp_under36_first_home_2."
+          },
+          "taxBase": {
+            "description": "Tax base.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "quota": {
+            "description": "Tax due after bonuses.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "effectiveRate": {
+            "type": "number",
+            "description": "Quota / base as a fraction.",
+            "format": "decimal"
+          },
+          "explanation": {
+            "type": "string",
+            "description": "Rule (and bonus) description with its legal reference."
+          },
+          "bonusRuleId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Bonus applied on top, if any."
+          },
+          "bonusAmount": {
+            "description": "Amount removed by the bonus.",
+            "$ref": "#/components/schemas/MoneyDto"
+          },
+          "sourceUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Official source of the rule."
+          }
+        },
+        "description": "Tax computed with the rule that applied."
+      },
+      "TaxRuleSetDto": {
+        "required": [
+          "id",
+          "jurisdiction",
+          "validFrom",
+          "revision",
+          "sourceFile",
+          "document"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Tax rule set id.",
+            "format": "uuid"
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "ISO 3166 code: ES or ES-IB."
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Display name."
+          },
+          "validFrom": {
+            "type": "string",
+            "description": "First day the set applies.",
+            "format": "date"
+          },
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Revision within that date.",
+            "format": "int32"
+          },
+          "verifiedOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Day the figures were last checked against official sources.",
+            "format": "date"
+          },
+          "sourceFile": {
+            "type": "string",
+            "description": "Seed file it was loaded from."
+          },
+          "document": {
+            "description": "Complete rule document as stored: `subdivisions` (islands with value limits), `rules` (rate, scale and bonus rules with their eligibility conditions), `fees` (notary and registry tariffs) and `aidPrograms`. Rates and bonuses are fractions; amounts are EUR.",
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        },
+        "description": "Immutable set of tax rules, island limits, fee tariffs and aid programmes for one jurisdiction."
+      },
+      "TaxRuleSetReferenceDto": {
+        "required": [
+          "id",
+          "jurisdiction",
+          "validFrom",
+          "revision"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Tax rule set id.",
+            "format": "uuid"
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "ISO 3166 code: ES (state) or ES-IB (Balearic Islands)."
+          },
+          "validFrom": {
+            "type": "string",
+            "description": "First day the set applies.",
+            "format": "date"
+          },
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Revision within that validity date.",
+            "format": "int32"
+          }
+        },
+        "description": "Reference to an immutable tax rule set."
+      },
+      "VerdictReasonDto": {
+        "required": [
+          "code",
+          "blocking",
+          "message",
+          "amount",
+          "ratio"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "CashShortfall, DebtToIncomeAboveLimit, StressScenarioAboveLimit or LoanEndsAfterMaximumAge."
+          },
+          "blocking": {
+            "type": "boolean",
+            "description": "True when it alone makes the purchase NotAffordable."
+          },
+          "message": {
+            "type": "string",
+            "description": "Explanation in English."
+          },
+          "amount": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Money involved, e.g. the savings shortfall.",
+                "$ref": "#/components/schemas/MoneyDto"
+              }
+            ]
+          },
+          "ratio": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Ratio involved, e.g. the debt-to-income (fraction).",
+            "format": "decimal"
+          }
+        },
+        "description": "Reason that keeps a purchase from being Affordable."
+      },
       "WatchlistItemDto": {
         "required": [
           "id",
@@ -3093,6 +6921,12 @@
     },
     {
       "name": "Sources"
+    },
+    {
+      "name": "Analysis"
+    },
+    {
+      "name": "Configuration"
     }
   ]
 }

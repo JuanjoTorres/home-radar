@@ -1,0 +1,65 @@
+# State-level rules (Spain): VAT on new homes and the notary/registry tariffs.
+# Figures verified on 2026-11-14/15; see docs/fiscalidad-baleares.md sections 2.1 and 3.
+# A new revision is a new immutable row in tax_rule_sets: bump `revision` (same validFrom) to correct figures,
+# or add a new file/validFrom when the law changes. Never edit a published revision in place.
+jurisdiction: ES
+name: Spain (state level)
+validFrom: "2026-06-14"
+revision: 1
+verifiedOn: "2026-11-15"
+
+rules:
+  - id: iva_new_housing_10
+    tax: ValueAddedTax
+    appliesTo: NewBuild
+    kind: FlatRate
+    role: Standard
+    rate: 0.10
+    description: "VAT 10 % on new homes, up to two parking spaces and annexes sold together (art. 91.Uno.1.7.º LIVA)"
+    sourceUrl: "https://legado.elnotario.es/images/pdf/DGT-N76-05-2180-2017.pdf"
+
+  - id: iva_protected_special_regime_4
+    tax: ValueAddedTax
+    appliesTo: NewBuild
+    kind: FlatRate
+    role: Relief
+    rate: 0.04
+    conditions:
+      housingRegimes: [ProtectedSpecialRegime]
+    description: "VAT 4 % on protected homes of special regime or public promotion (art. 91.Dos.1.6.º LIVA)"
+    sourceUrl: "https://legado.elnotario.es/images/pdf/DGT-N76-05-2180-2017.pdf"
+
+fees:
+  - id: notary_purchase_deed
+    kind: NotaryDeed
+    brackets:
+      - { upTo: 6010.12, fixed: 90.151816 }
+      - { upTo: 30050.61, permille: 4.5 }
+      - { upTo: 60101.21, permille: 1.5 }
+      - { upTo: 150253.03, permille: 1.0 }
+      - { upTo: 601012.10, permille: 0.5 }
+      - { upTo: 6010121.04, permille: 0.3 }
+    reduction: 0.05
+    vat: 0.21
+    extrasEur: 150
+    description: "Notary fee for the purchase deed: RD 1426/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus ~150 EUR of copies and folios"
+    sourceUrl: "https://www.boe.es/eli/es/rd/1989/11/17/1426/con"
+    note: "Copies and folios are an estimate; the 10 % rebate cited by secondary sources (RDL 6/2000) is not in the consolidated tariff and is not applied"
+
+  - id: registry_purchase
+    kind: LandRegistry
+    brackets:
+      - { upTo: 6010.12, fixed: 24.040484 }
+      - { upTo: 30050.61, permille: 1.75 }
+      - { upTo: 60101.21, permille: 1.25 }
+      - { upTo: 150253.03, permille: 0.75 }
+      - { upTo: 601012.10, permille: 0.30 }
+      - { permille: 0.20 }
+    reduction: 0.05
+    vat: 0.21
+    minEur: 24.040484
+    maxEur: 2181.673939
+    extrasEur: 3.64
+    description: "Land registry fee for the purchase: RD 1427/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus the nota simple"
+    sourceUrl: "https://boe.es/buscar/pdf/1989/BOE-A-1989-28112-consolidado.pdf"
+    note: "The 2,181.67 EUR cap is formulated for the global tariff and may not apply per property; it only binds above ~7 M EUR"

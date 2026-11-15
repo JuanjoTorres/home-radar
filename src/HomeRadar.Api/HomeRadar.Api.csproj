@@ -28,5 +28,6 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Docs\Endpoints\*.md" />
+    <EmbeddedResource Include="Docs\Examples\*.json" />
   </ItemGroup>
 </Project>

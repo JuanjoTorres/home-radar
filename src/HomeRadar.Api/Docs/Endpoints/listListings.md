@@ -4,3 +4,5 @@ history-based or multi-value filters.
 
 Results default to `Active` and `Relisted` listings, newest first (`firstSeenAt`). `daysOnMarket` counts from the publication
 date when the source publishes one (Solvia, Aliseda, Inmovilla) and from the first time HomeRadar saw the listing otherwise.
+
+`affordableFor` (financing profile id) and `budget` (EUR) apply the affordability filter described in `searchListings`.

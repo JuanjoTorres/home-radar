@@ -60,6 +60,7 @@ builder.Services.AddOpenApi("v1", options =>
     options.AddDocumentTransformer<HomeRadarDocumentTransformer>();
     options.AddSchemaTransformer<DecimalSchemaTransformer>();
     options.AddOperationTransformer<OperationConventionsTransformer>();
+    options.AddOperationTransformer<OperationExamplesTransformer>();
 });
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database");
 builder.Services.AddOpenTelemetry()
@@ -85,6 +86,7 @@ v1.MapListingEndpoints();
 v1.MapProfileEndpoints();
 v1.MapWatchlistEndpoints();
 v1.MapSourceEndpoints();
+v1.MapAnalysisEndpoints();
 
 if (builder.Configuration.GetValue("Database:MigrateOnStartup", false))
 {

@@ -1,0 +1,40 @@
+{
+  "price": {
+    "amount": 245000,
+    "currency": "EUR"
+  },
+  "purchaseKind": "Resale",
+  "municipality": "Inca",
+  "renovationCost": {
+    "amount": 12000,
+    "currency": "EUR"
+  },
+  "financing": {
+    "savings": {
+      "amount": 75000,
+      "currency": "EUR"
+    },
+    "netMonthlyIncome": {
+      "amount": 3200,
+      "currency": "EUR"
+    },
+    "maxDebtToIncomeRatio": 0.35,
+    "mortgage": {
+      "type": "Mixed",
+      "maxLoanToValue": 0.8,
+      "nominalRatePercent": 2.25,
+      "spreadPercent": 0.65,
+      "fixedMonths": 120,
+      "termMonths": 360
+    },
+    "buyer": {
+      "age": 33,
+      "firstHome": true,
+      "primaryResidence": true,
+      "residentInBalearics": true,
+      "yearsResidentInBalearics": 8,
+      "grossAnnualIncome": 46000,
+      "netWorth": 70000
+    }
+  }
+}

@@ -68,7 +68,8 @@ public sealed record MortgageTerms(
     decimal? NominalRatePercent,
     decimal? SpreadPercent,
     int? FixedMonths,
-    int TermMonths);
+    int TermMonths,
+    decimal? OpeningFeePercent = null);
 
 public sealed record BuyerProfile(
     int Age,
@@ -80,7 +81,19 @@ public sealed record BuyerProfile(
     bool SingleParentFamily,
     int? DisabilityPercent,
     decimal? TaxableIncomeBase,
-    decimal? NetWorth);
+    decimal? NetWorth,
+    bool? OwnsOtherHome = null,
+    int? YearsResidentInSpain = null,
+    bool? JointTaxReturn = null,
+    decimal? GrossAnnualIncome = null,
+    int BuyerCount = 1,
+    bool HasDependentChildren = false,
+    bool DisabilityMinimumForRelatives = false)
+{
+    public bool? HasNoOtherHome() => OwnsOtherHome is { } owns ? !owns : FirstHome ? true : null;
+
+    public int? BalearicResidencyYears() => ResidentInBalearics ? YearsResidentInBalearics : 0;
+}
 
 public enum MortgageType
 {

@@ -1,4 +1,6 @@
+using System.Text.Json;
 using HomeRadar.Application.Seeding;
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Profiles;
 using HomeRadar.Domain.Sources;
 using HomeRadar.Domain.ValueObjects;
@@ -32,6 +34,60 @@ public static class YamlSeedLoader
 
     public static IReadOnlyList<SearchProfileSeed> LoadSearchProfiles(string directory) =>
         LoadAll<SearchProfilesFile>(directory, "search-profiles").SelectMany(file => file.Profiles).Select(ToSeed).ToList();
+
+    public static IReadOnlyList<TaxRuleSetSeed> LoadTaxRuleSets(string directory)
+    {
+        var folder = Path.Combine(directory, "tax-rules");
+        if (!Directory.Exists(folder))
+        {
+            return [];
+        }
+
+        return Directory.EnumerateFiles(folder, "*.yaml")
+            .Order(StringComparer.Ordinal)
+            .Select(path => ToTaxRuleSetSeed(path, ToJson(File.ReadAllText(path))))
+            .ToList();
+    }
+
+    public static IReadOnlyList<BusinessConfigSeed> LoadBusinessConfigs(string directory)
+    {
+        var seeds = new List<BusinessConfigSeed>();
+        foreach (var name in new[] { "business-config.yaml", "business-config.local.yaml" })
+        {
+            var path = Path.Combine(directory, name);
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            using var json = JsonDocument.Parse(ToJson(File.ReadAllText(path)));
+            foreach (var version in json.RootElement.GetProperty("versions").EnumerateArray())
+            {
+                seeds.Add(new BusinessConfigSeed(
+                    DateOnly.Parse(version.GetProperty("validFrom").GetString()!, System.Globalization.CultureInfo.InvariantCulture),
+                    version.GetProperty("revision").GetInt32(),
+                    BusinessConfig.Parse(version.GetProperty("config").GetRawText()),
+                    version.TryGetProperty("source", out var source) ? source.GetString() ?? name : name));
+            }
+        }
+
+        return seeds;
+    }
+
+    private static TaxRuleSetSeed ToTaxRuleSetSeed(string path, string json)
+    {
+        using var parsed = JsonDocument.Parse(json);
+        var root = parsed.RootElement;
+        var document = JsonSerializer.Deserialize<TaxRuleDocument>(json, FinanceJson.Options)!;
+        return new TaxRuleSetSeed(
+            document,
+            DateOnly.Parse(root.GetProperty("validFrom").GetString()!, System.Globalization.CultureInfo.InvariantCulture),
+            root.GetProperty("revision").GetInt32(),
+            root.TryGetProperty("verifiedOn", out var verified) ? DateOnly.Parse(verified.GetString()!, System.Globalization.CultureInfo.InvariantCulture) : null,
+            Path.GetFileName(path));
+    }
+
+    private static string ToJson(string yaml) => JsonSerializer.Serialize(Normalize(Deserializer.Deserialize<object>(yaml)!));
 
     private static IEnumerable<T> LoadAll<T>(string directory, string stem)
     {
@@ -71,8 +127,25 @@ public static class YamlSeedLoader
         entry.NetMonthlyIncome,
         entry.ExistingMonthlyDebt,
         entry.MaxDebtToIncomeRatio,
-        new MortgageTerms(Enum.Parse<MortgageType>(entry.Mortgage.Type, ignoreCase: true), entry.Mortgage.MaxLoanToValue, entry.Mortgage.NominalRatePercent, entry.Mortgage.SpreadPercent, entry.Mortgage.FixedMonths, entry.Mortgage.TermMonths),
-        new BuyerProfile(entry.Buyer.Age, entry.Buyer.FirstHome, entry.Buyer.PrimaryResidence, entry.Buyer.ResidentInBalearics, entry.Buyer.YearsResidentInBalearics, entry.Buyer.LargeFamily, entry.Buyer.SingleParentFamily, entry.Buyer.DisabilityPercent, entry.Buyer.TaxableIncomeBase, entry.Buyer.NetWorth),
+        new MortgageTerms(Enum.Parse<MortgageType>(entry.Mortgage.Type, ignoreCase: true), entry.Mortgage.MaxLoanToValue, entry.Mortgage.NominalRatePercent, entry.Mortgage.SpreadPercent, entry.Mortgage.FixedMonths, entry.Mortgage.TermMonths, entry.Mortgage.OpeningFeePercent),
+        new BuyerProfile(
+            entry.Buyer.Age,
+            entry.Buyer.FirstHome,
+            entry.Buyer.PrimaryResidence,
+            entry.Buyer.ResidentInBalearics,
+            entry.Buyer.YearsResidentInBalearics,
+            entry.Buyer.LargeFamily,
+            entry.Buyer.SingleParentFamily,
+            entry.Buyer.DisabilityPercent,
+            entry.Buyer.TaxableIncomeBase,
+            entry.Buyer.NetWorth,
+            entry.Buyer.OwnsOtherHome,
+            entry.Buyer.YearsResidentInSpain,
+            entry.Buyer.JointTaxReturn,
+            entry.Buyer.GrossAnnualIncome,
+            entry.Buyer.BuyerCount,
+            entry.Buyer.HasDependentChildren,
+            entry.Buyer.DisabilityMinimumForRelatives),
         entry.IsDefault);
 
     private static SearchProfileSeed ToSeed(SearchProfileEntry entry) => new(
@@ -182,6 +255,8 @@ public static class YamlSeedLoader
         public int? FixedMonths { get; set; }
 
         public int TermMonths { get; set; } = 360;
+
+        public decimal? OpeningFeePercent { get; set; }
     }
 
     public sealed class BuyerEntry
@@ -205,6 +280,20 @@ public static class YamlSeedLoader
         public decimal? TaxableIncomeBase { get; set; }
 
         public decimal? NetWorth { get; set; }
+
+        public bool? OwnsOtherHome { get; set; }
+
+        public int? YearsResidentInSpain { get; set; }
+
+        public bool? JointTaxReturn { get; set; }
+
+        public decimal? GrossAnnualIncome { get; set; }
+
+        public int BuyerCount { get; set; } = 1;
+
+        public bool HasDependentChildren { get; set; }
+
+        public bool DisabilityMinimumForRelatives { get; set; }
     }
 
     public sealed class SearchProfilesFile

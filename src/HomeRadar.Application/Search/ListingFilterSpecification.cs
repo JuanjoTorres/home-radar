@@ -16,8 +16,13 @@ public static class ListingFilterSpecification
 {
     private static readonly WKTReader WktReader = new();
 
-    public static Expression<Func<Listing, bool>> Build(ListingFilter filter, DateTimeOffset now)
+    public static Expression<Func<Listing, bool>> Build(ListingFilter filter, DateTimeOffset now, AffordablePriceLimits? affordability = null)
     {
+        if (filter.Affordability is not null && affordability is null)
+        {
+            throw new InvalidOperationException("The filter has affordability criteria; resolve them with AffordabilityLimitResolver first.");
+        }
+
         var predicate = PredicateComposer.True<Listing>();
 
         if (filter.Statuses.Count > 0)
@@ -181,7 +186,38 @@ public static class ListingFilterSpecification
             predicate = predicate.And(l => !l.IsNewBuild);
         }
 
+        if (affordability is not null)
+        {
+            predicate = predicate.And(Affordable(affordability));
+        }
+
         return predicate;
+    }
+
+    private static Expression<Func<Listing, bool>> Affordable(AffordablePriceLimits limits)
+    {
+        var listed = limits.Subdivisions.Where(subdivision => !subdivision.IsDefault).SelectMany(subdivision => subdivision.MunicipalityKeys).Distinct().ToList();
+        var anyMatch = PredicateComposer.False<Listing>();
+        foreach (var subdivision in limits.Subdivisions)
+        {
+            var resaleMaximum = subdivision.ResaleMaximum ?? -1m;
+            var newBuildMaximum = subdivision.NewBuildMaximum ?? -1m;
+            Expression<Func<Listing, bool>> priceWithin = l => l.PriceAmount != null && (l.IsNewBuild ? l.PriceAmount <= newBuildMaximum : l.PriceAmount <= resaleMaximum);
+            Expression<Func<Listing, bool>> located;
+            if (subdivision.IsDefault)
+            {
+                located = l => l.Municipality == null || !listed.Contains(l.Municipality.ToLower());
+            }
+            else
+            {
+                var keys = subdivision.MunicipalityKeys.ToList();
+                located = l => l.Municipality != null && keys.Contains(l.Municipality.ToLower());
+            }
+
+            anyMatch = anyMatch.Or(located.And(priceWithin));
+        }
+
+        return anyMatch;
     }
 
     private static string Normalize(string municipality) => municipality.Trim().ToLowerInvariant();

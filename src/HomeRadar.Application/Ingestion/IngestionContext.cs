@@ -1,4 +1,5 @@
 using HomeRadar.Application.Ports;
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Sources;
 
@@ -25,6 +26,8 @@ public sealed class IngestionContext(Source source, SourceRun run, FetchedListin
     public List<Guid> MatchedSearchProfileIds { get; } = [];
 
     public bool OnWatchlist { get; set; }
+
+    public FinancialAnalysis? Analysis { get; set; }
 
     public bool ShouldContinue => Listing is not null && (IsNew || Changed);
 }

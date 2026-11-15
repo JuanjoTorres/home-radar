@@ -14,4 +14,10 @@ removes those. `Unknown` means the source gave no signal.
 with an old cursor returns a 400. Sorts: `FirstSeenDesc` (default), `PriceAsc`, `PriceDesc`, `PricePerM2`, `PriceDropDesc`.
 Listings without a price sort last for price-based sorts.
 
-Affordability filtering (`financingProfileId`, `budget`) arrives with the analysis engine in phase 2 as an additive change.
+**Affordability.** `affordability.financingProfileId` keeps listings whose price is at most the profile's maximum affordable
+price for the listing's island (value limits differ per island) and kind (resale pays ITP; new build pays VAT + AJD). The
+maximum is the same one `calculateMaximumAffordablePrice` returns: highest price with verdict `Affordable` (or `Borderline`
+with `minimumVerdict`), taxes and closing costs included, with the profile's loan-to-value or an eligible ICO/IBAVI guarantee
+when `includeGuarantees` is true. `affordability.budget` keeps listings whose price + taxes + closing costs fit in the budget,
+taxed at standard rates unless a profile is also given. Listings without a price never pass. Renovation is not included until
+the rule-based estimator of phase 3. Unknown municipalities are treated as Mallorca, like in the analysis.

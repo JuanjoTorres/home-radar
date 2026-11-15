@@ -10,4 +10,7 @@
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="CsCheck" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\config\seed\**\*.yaml" Exclude="..\..\config\seed\**\*.local.yaml" Link="seed\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

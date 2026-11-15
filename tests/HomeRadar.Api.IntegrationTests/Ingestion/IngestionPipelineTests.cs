@@ -4,6 +4,7 @@ using HomeRadar.Application.Ingestion;
 using HomeRadar.Application.Notifications;
 using HomeRadar.Application.Outbox;
 using HomeRadar.Application.Ports;
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Profiles;
 using HomeRadar.Domain.Sources;
@@ -95,6 +96,45 @@ public sealed class IngestionPipelineTests(DatabaseFixture fixture)
             var inca = await db.Listings.SingleAsync(l => l.ExternalId == "1", TestContext.Current.CancellationToken);
             inca.LastSeenAt.ShouldBe(T0.AddDays(4));
         }
+    }
+
+    [Fact]
+    public async Task New_listings_are_analysed_and_affordability_searches_only_alert_what_the_buyer_can_pay()
+    {
+        var connection = await fixture.CreateDatabaseAsync("ingest");
+        var adapter = new FakeAdapter();
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 8, 0, 0, TimeSpan.Zero));
+        var sent = new List<Notification>();
+        await using var provider = BuildServices(connection, adapter, clock, sent);
+
+        Guid sourceId;
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<HomeRadarDbContext>();
+            var profile = await FinanceSeed.ApplyAsync(db);
+            var source = new Source("fake", "Fake portal", SourceKind.Servicer, SellerType.Servicer, "fake", TimeSpan.FromHours(1), true, "{}");
+            db.Sources.Add(source);
+            db.SearchProfiles.Add(new SearchProfile("asequible", 1, "Lo que puedo pagar", new ListingFilter { Affordability = new AffordabilityCriteria { FinancingProfileId = profile.Id } }, [AlertChannel.Telegram], true, true));
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+            sourceId = source.Id;
+        }
+
+        adapter.Listings = [Observation("1", 245_000, "Piso en Inca"), Observation("2", 420_000, "Casa en Pollença", "Pollença")];
+        await RunAsync(provider, sourceId);
+        await DispatchAsync(provider);
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<HomeRadarDbContext>();
+            var analyses = await db.ListingAnalyses.ToListAsync(TestContext.Current.CancellationToken);
+            analyses.Count.ShouldBe(2);
+            analyses.Select(analysis => analysis.Verdict).ShouldBe([AffordabilityVerdict.Affordable, AffordabilityVerdict.NotAffordable], ignoreOrder: true);
+        }
+
+        var alert = sent.ShouldHaveSingleItem();
+        alert.Body.ShouldContain("Piso en Inca");
+        alert.Body.ShouldContain("✅ Asequible con «Perfil de prueba»");
+        alert.Body.ShouldContain("Tu precio máximo aquí");
     }
 
     [Fact]

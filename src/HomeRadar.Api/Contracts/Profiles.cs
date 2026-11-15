@@ -23,7 +23,14 @@ public sealed record MortgageTermsDto
     /// <summary>Term in months (60–480).</summary>
     public required int TermMonths { get; init; }
 
-    public MortgageTerms ToDomain() => new(Enum.Parse<MortgageType>(Type, ignoreCase: true), MaxLoanToValue, NominalRatePercent, SpreadPercent, FixedMonths, TermMonths);
+    /// <summary>Opening fee in % of the loan, if the bank charges one.</summary>
+    public decimal? OpeningFeePercent { get; init; }
+
+    public MortgageTerms ToDomain() => new(Enum.Parse<MortgageType>(Type, ignoreCase: true), MaxLoanToValue, NominalRatePercent, SpreadPercent, FixedMonths, TermMonths, OpeningFeePercent);
+
+    public MortgageTerms? ToDomainOrNull() => Enum.TryParse<MortgageType>(Type, ignoreCase: true, out var type)
+        ? new MortgageTerms(type, MaxLoanToValue, NominalRatePercent, SpreadPercent, FixedMonths, TermMonths, OpeningFeePercent)
+        : null;
 
     public static MortgageTermsDto From(MortgageTerms terms) => new()
     {
@@ -33,13 +40,14 @@ public sealed record MortgageTermsDto
         SpreadPercent = terms.SpreadPercent,
         FixedMonths = terms.FixedMonths,
         TermMonths = terms.TermMonths,
+        OpeningFeePercent = terms.OpeningFeePercent,
     };
 }
 
 /// <summary>Personal circumstances that decide which tax reductions and aids apply.</summary>
 public sealed record BuyerProfileDto
 {
-    /// <summary>Age in years (18–99).</summary>
+    /// <summary>Age in years (18–99) of the oldest buyer: age limits of reliefs and aid are checked against it.</summary>
     public required int Age { get; init; }
 
     /// <summary>First home purchase.</summary>
@@ -69,7 +77,28 @@ public sealed record BuyerProfileDto
     /// <summary>Net worth in EUR, needed for the ICO guarantee (≤ 150,000 €).</summary>
     public decimal? NetWorth { get; init; }
 
-    public BuyerProfile ToDomain() => new(Age, FirstHome, PrimaryResidence, ResidentInBalearics, YearsResidentInBalearics, LargeFamily, SingleParentFamily, DisabilityPercent, TaxableIncomeBase, NetWorth);
+    /// <summary>Owns (≥ 50 %) another home now. When omitted, a first-home buyer is assumed to own none.</summary>
+    public bool? OwnsOtherHome { get; init; }
+
+    /// <summary>Years of legal residence in Spain (ICO requires 2).</summary>
+    public int? YearsResidentInSpain { get; init; }
+
+    /// <summary>Files a joint IRPF return (limit 84,480 € instead of 52,800 € for the 100 % bonus).</summary>
+    public bool? JointTaxReturn { get; init; }
+
+    /// <summary>Gross annual income of the household in EUR, needed for the ICO and IBAVI guarantees and the 10,000 € grant.</summary>
+    public decimal? GrossAnnualIncome { get; init; }
+
+    /// <summary>Number of buyers (1–2).</summary>
+    public int BuyerCount { get; init; } = 1;
+
+    /// <summary>Has dependent children (ICO guarantee without age limit).</summary>
+    public bool HasDependentChildren { get; init; }
+
+    /// <summary>Applies the IRPF disability minimum for ascendants or descendants (2 % ITP).</summary>
+    public bool DisabilityMinimumForRelatives { get; init; }
+
+    public BuyerProfile ToDomain() => new(Age, FirstHome, PrimaryResidence, ResidentInBalearics, YearsResidentInBalearics, LargeFamily, SingleParentFamily, DisabilityPercent, TaxableIncomeBase, NetWorth, OwnsOtherHome, YearsResidentInSpain, JointTaxReturn, GrossAnnualIncome, BuyerCount, HasDependentChildren, DisabilityMinimumForRelatives);
 
     public static BuyerProfileDto From(BuyerProfile buyer) => new()
     {
@@ -83,6 +112,13 @@ public sealed record BuyerProfileDto
         DisabilityPercent = buyer.DisabilityPercent,
         TaxableIncomeBase = buyer.TaxableIncomeBase,
         NetWorth = buyer.NetWorth,
+        OwnsOtherHome = buyer.OwnsOtherHome,
+        YearsResidentInSpain = buyer.YearsResidentInSpain,
+        JointTaxReturn = buyer.JointTaxReturn,
+        GrossAnnualIncome = buyer.GrossAnnualIncome,
+        BuyerCount = buyer.BuyerCount,
+        HasDependentChildren = buyer.HasDependentChildren,
+        DisabilityMinimumForRelatives = buyer.DisabilityMinimumForRelatives,
     };
 }
 

@@ -1,0 +1,39 @@
+{
+  "id": "01a1ded1-4355-71c1-80c4-b45dbe7aebee",
+  "validFrom": "2026-11-01",
+  "revision": 1,
+  "source": "Euríbor October 2026 (Banco de España press note 2026-11-03); thresholds and estimates from docs/fiscalidad-baleares.md §3.3 and §5",
+  "loadedAt": "2026-11-15T10:46:58.530935+00:00",
+  "defaultJurisdiction": "ES-IB",
+  "euribor": {
+    "twelveMonthPercent": 3.239,
+    "month": "2026-10",
+    "sourceUrl": "https://www.bde.es/f/webbe/GAP/Secciones/SalaPrensa/NotasInformativas/26/presbe2026-104.pdf"
+  },
+  "rateScenarios": [
+    {
+      "name": "base",
+      "euriborDeltaPercent": 0
+    },
+    {
+      "name": "plus1",
+      "euriborDeltaPercent": 1
+    },
+    {
+      "name": "plus2",
+      "euriborDeltaPercent": 2
+    }
+  ],
+  "stressScenario": "plus2",
+  "affordability": {
+    "borderlineCashShortfallMax": 5000,
+    "borderlineDebtToIncomeTolerance": 0.03,
+    "maxAgeAtLoanMaturity": 75,
+    "renovationContingencyPercent": 10
+  },
+  "closingCosts": {
+    "gestoriaEur": 400,
+    "appraisalEur": 450,
+    "sourceUrl": "https://www.hipotecalc.com/itp/baleares"
+  }
+}

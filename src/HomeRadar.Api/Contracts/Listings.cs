@@ -272,6 +272,9 @@ public sealed record ListingSearchRequestDto
     /// <summary>Include new-build listings; defaults to true.</summary>
     public bool IncludeNewBuild { get; init; } = true;
 
+    /// <summary>Return only what the buyer can pay, taxes and closing costs included (renovation from phase 3). See <c>calculateMaximumAffordablePrice</c> for the calculation.</summary>
+    public AffordabilityFilterDto? Affordability { get; init; }
+
     /// <summary>Sort order; defaults to FirstSeenDesc.</summary>
     public ListingSortDto Sort { get; init; } = ListingSortDto.FirstSeenDesc;
 
@@ -280,4 +283,20 @@ public sealed record ListingSearchRequestDto
 
     /// <summary>Page size (1–100), default 25.</summary>
     public int Limit { get; init; } = 25;
+}
+
+/// <summary>Affordability filter. With a profile, a listing passes when its price is at most the profile's maximum affordable price for its island and kind (resale or new build); with a budget, when price + taxes + closing costs fit in it; with both, both limits apply.</summary>
+public sealed record AffordabilityFilterDto
+{
+    /// <summary>Financing profile whose maximum affordable price is applied.</summary>
+    public Guid? FinancingProfileId { get; init; }
+
+    /// <summary>Total budget: price + taxes + closing costs must fit in it.</summary>
+    public MoneyDto? Budget { get; init; }
+
+    /// <summary>Affordable (default) or Borderline.</summary>
+    public string MinimumVerdict { get; init; } = "Affordable";
+
+    /// <summary>Count an eligible ICO or IBAVI guarantee when it raises the loan-to-value.</summary>
+    public bool IncludeGuarantees { get; init; }
 }

@@ -28,6 +28,9 @@ public sealed partial class SeedJob(SeedService seeds, IOptions<SeedOptions> opt
         var searches = YamlSeedLoader.LoadSearchProfiles(directory);
         await seeds.ApplyAsync(sources, financing, searches, cancellationToken);
         Applied(logger, sources.Count, financing.Count, searches.Count);
+
+        var finance = await seeds.ApplyFinanceAsync(YamlSeedLoader.LoadTaxRuleSets(directory), YamlSeedLoader.LoadBusinessConfigs(directory), cancellationToken);
+        FinanceApplied(logger, finance.Added, finance.Rejected);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Seed directory {Directory} does not exist; nothing seeded")]
@@ -35,4 +38,7 @@ public sealed partial class SeedJob(SeedService seeds, IOptions<SeedOptions> opt
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Seed applied: {Sources} sources, {Financing} financing profiles, {Searches} search profiles")]
     private static partial void Applied(ILogger logger, int sources, int financing, int searches);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Finance seed applied: {Added} new tax rule sets or business config versions, {Rejected} rejected")]
+    private static partial void FinanceApplied(ILogger logger, int added, int rejected);
 }

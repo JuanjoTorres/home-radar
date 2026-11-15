@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json.Nodes;
 
 namespace HomeRadar.Api.Infrastructure;
 
@@ -18,6 +19,18 @@ public static class EndpointDocs
         using var stream = Assembly.GetManifestResourceStream(resourceName)!;
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd().Trim();
+    }
+
+    public static JsonNode? Example(string operationId, string kind)
+    {
+        var resourceName = Assembly.GetManifestResourceNames().FirstOrDefault(name => name.EndsWith($".Docs.Examples.{operationId}.{kind}.json", StringComparison.Ordinal));
+        if (resourceName is null)
+        {
+            return null;
+        }
+
+        using var stream = Assembly.GetManifestResourceStream(resourceName)!;
+        return JsonNode.Parse(stream);
     }
 
     public static RouteHandlerBuilder Document(this RouteHandlerBuilder builder, string operationId, string summary, string tag) =>

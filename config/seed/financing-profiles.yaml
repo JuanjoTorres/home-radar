@@ -19,3 +19,10 @@ profiles:
       primaryResidence: true
       residentInBalearics: true
       yearsResidentInBalearics: 5
+      # Optional, they unlock or rule out reliefs and aid (see docs/api/README.md):
+      # taxableIncomeBase: 30000      # IRPF taxable base (100 % ITP bonus for under 30)
+      # jointTaxReturn: false
+      # grossAnnualIncome: 42000      # household gross income (ICO, IBAVI, 10,000 € grant)
+      # netWorth: 60000               # ICO guarantee
+      # buyerCount: 1
+      # yearsResidentInSpain: 10

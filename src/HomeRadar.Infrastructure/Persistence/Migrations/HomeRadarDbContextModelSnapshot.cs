@@ -30,9 +30,15 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset>("LoadedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("PayloadJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer");
 
                     b.Property<string>("SourceDescription")
                         .IsRequired()
@@ -42,15 +48,112 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("ValidFrom")
                         .HasColumnType("date");
 
-                    b.Property<DateOnly?>("ValidTo")
+                    b.HasKey("Id");
+
+                    b.HasIndex("ValidFrom", "Revision")
+                        .IsUnique();
+
+                    b.ToTable("business_config_versions", (string)null);
+                });
+
+            modelBuilder.Entity("HomeRadar.Domain.Finance.ListingAnalysis", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BusinessConfigVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CalculatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FinancingProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("InputHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("InputJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("ListingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("MaximumAffordablePrice")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<decimal>("PriceAmount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.PrimitiveCollection<Guid[]>("TaxRuleSetIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]");
+
+                    b.Property<string>("Verdict")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FinancingProfileId");
+
+                    b.HasIndex("ListingId", "FinancingProfileId", "CalculatedAt");
+
+                    b.HasIndex("ListingId", "FinancingProfileId", "InputHash")
+                        .IsUnique();
+
+                    b.ToTable("listing_analyses", (string)null);
+                });
+
+            modelBuilder.Entity("HomeRadar.Domain.Finance.TaxRuleSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DocumentJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Jurisdiction")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("LoadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceFile")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("VerifiedOn")
                         .HasColumnType("date");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ValidFrom")
+                    b.HasIndex("Jurisdiction", "ValidFrom", "Revision")
                         .IsUnique();
 
-                    b.ToTable("business_config_versions", (string)null);
+                    b.ToTable("tax_rule_sets", (string)null);
                 });
 
             modelBuilder.Entity("HomeRadar.Domain.Listings.Agency", b =>
@@ -737,6 +840,21 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("watchlist_items", (string)null);
+                });
+
+            modelBuilder.Entity("HomeRadar.Domain.Finance.ListingAnalysis", b =>
+                {
+                    b.HasOne("HomeRadar.Domain.Profiles.FinancingProfile", null)
+                        .WithMany()
+                        .HasForeignKey("FinancingProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HomeRadar.Domain.Listings.Listing", null)
+                        .WithMany()
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("HomeRadar.Domain.Listings.Listing", b =>

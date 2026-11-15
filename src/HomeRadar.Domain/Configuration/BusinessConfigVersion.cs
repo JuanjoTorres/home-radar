@@ -1,27 +1,35 @@
 using HomeRadar.Domain.Common;
+using HomeRadar.Domain.Finance;
 
 namespace HomeRadar.Domain.Configuration;
 
 public sealed class BusinessConfigVersion : Entity
 {
+    private BusinessConfig? _config;
+
     private BusinessConfigVersion()
     {
     }
 
-    public BusinessConfigVersion(DateOnly validFrom, string payloadJson, string sourceDescription)
+    public BusinessConfigVersion(DateOnly validFrom, int revision, BusinessConfig config, string sourceDescription, DateTimeOffset loadedAt)
     {
         ValidFrom = validFrom;
-        PayloadJson = payloadJson;
+        Revision = revision;
+        PayloadJson = config.ToJson();
         SourceDescription = sourceDescription;
+        LoadedAt = loadedAt;
+        _config = config;
     }
 
-    public DateOnly ValidFrom { get; private set; }
+    public DateOnly ValidFrom { get; private init; }
 
-    public DateOnly? ValidTo { get; private set; }
+    public int Revision { get; private init; }
 
-    public string PayloadJson { get; private set; } = "{}";
+    public string PayloadJson { get; private init; } = "{}";
 
-    public string SourceDescription { get; private set; } = string.Empty;
+    public string SourceDescription { get; private init; } = string.Empty;
 
-    public void CloseOn(DateOnly validTo) => ValidTo = validTo;
+    public DateTimeOffset LoadedAt { get; private init; }
+
+    public BusinessConfig Config => _config ??= BusinessConfig.Parse(PayloadJson);
 }

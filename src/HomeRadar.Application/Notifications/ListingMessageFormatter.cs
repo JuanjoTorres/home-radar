@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using HomeRadar.Domain.Finance;
 using HomeRadar.Domain.Listings;
 
 namespace HomeRadar.Application.Notifications;
@@ -14,7 +15,7 @@ public static class ListingMessageFormatter
         PositiveSign = "+",
     };
 
-    public static string NewListing(Listing listing, string sourceName, IReadOnlyList<string> matchedProfiles)
+    public static string NewListing(Listing listing, string sourceName, IReadOnlyList<string> matchedProfiles, VerdictSummary? verdict = null)
     {
         var text = new StringBuilder();
         text.Append("🏠 Nuevo: ").Append(Escape(listing.Title)).Append('\n');
@@ -36,6 +37,11 @@ public static class ListingMessageFormatter
             text.Append("⚠️ Posesión: ").Append(listing.Possession).Append('\n');
         }
 
+        if (verdict is not null)
+        {
+            text.Append(Verdict(verdict)).Append('\n');
+        }
+
         text.Append("Fuente: ").Append(Escape(sourceName)).Append('\n');
         if (matchedProfiles.Count > 0)
         {
@@ -46,7 +52,7 @@ public static class ListingMessageFormatter
         return text.ToString();
     }
 
-    public static string Changed(Listing listing, IReadOnlyList<ListingEvent> events)
+    public static string Changed(Listing listing, IReadOnlyList<ListingEvent> events, VerdictSummary? verdict = null)
     {
         var text = new StringBuilder();
         text.Append("🔔 Cambio en seguimiento: ").Append(Escape(listing.Title)).Append('\n');
@@ -55,9 +61,52 @@ public static class ListingMessageFormatter
             text.Append("• ").Append(Describe(listingEvent)).Append('\n');
         }
 
-        text.Append(FormatPrice(listing)).Append('\n').Append(listing.Url);
+        text.Append(FormatPrice(listing)).Append('\n');
+        if (verdict is not null)
+        {
+            text.Append(Verdict(verdict)).Append('\n');
+        }
+
+        text.Append(listing.Url);
         return text.ToString();
     }
+
+    public static string Verdict(VerdictSummary summary)
+    {
+        var analysis = summary.Analysis.Base;
+        var profile = Escape(summary.ProfileName);
+        var text = analysis.Verdict switch
+        {
+            AffordabilityVerdict.Affordable => $"✅ Asequible con «{profile}»: {Euros(analysis.CashNeeded.Amount)} € de entrada y gastos, cuota {Euros(analysis.Payments[0].MaxMonthlyPayment.Amount)} €/mes ({Percent(analysis.DebtToIncome)} % de ingresos)",
+            AffordabilityVerdict.Borderline => $"⚠️ Al límite con «{profile}»: {Reasons(analysis.Reasons)}",
+            _ => $"❌ No asequible con «{profile}»: {Reasons(analysis.Reasons)}",
+        };
+
+        if (analysis.Verdict != AffordabilityVerdict.Affordable && summary.Analysis.WithGuarantee is { } guaranteed && guaranteed.Verdict < analysis.Verdict)
+        {
+            text += $"\n🛡️ Con aval ({guaranteed.LoanOption.GuaranteeProgramId}) sería {(guaranteed.Verdict == AffordabilityVerdict.Affordable ? "asequible" : "al límite")}";
+        }
+
+        if (summary.Analysis.MaximumPrice?.Price is { } maximum)
+        {
+            text += $"\n🎯 Tu precio máximo aquí: {Euros(maximum.Amount)} €";
+        }
+
+        return text;
+    }
+
+    private static string Reasons(IReadOnlyList<VerdictReason> reasons) => string.Join("; ", reasons.Select(reason => reason.Code switch
+    {
+        VerdictReasonCode.CashShortfall => $"faltan {Euros(reason.Amount?.Amount ?? 0m)} € de ahorro",
+        VerdictReasonCode.DebtToIncomeAboveLimit => $"la cuota sería el {Percent(reason.Ratio ?? 0m)} % de los ingresos",
+        VerdictReasonCode.StressScenarioAboveLimit => $"con el euríbor +2 puntos llegaría al {Percent(reason.Ratio ?? 0m)} %",
+        VerdictReasonCode.LoanEndsAfterMaximumAge => "el plazo supera la edad máxima habitual de los bancos",
+        _ => reason.Message,
+    }));
+
+    private static string Euros(decimal amount) => amount.ToString("N0", Spanish);
+
+    private static string Percent(decimal ratio) => (ratio * 100m).ToString("0.#", Spanish);
 
     public static string Describe(ListingEvent listingEvent) => listingEvent.Type switch
     {
@@ -131,3 +180,5 @@ public static class ListingMessageFormatter
 
     private static string Escape(string text) => text.Replace('<', '‹').Replace('>', '›');
 }
+
+public sealed record VerdictSummary(string ProfileName, FinancialAnalysis Analysis);

@@ -42,10 +42,13 @@ public sealed class DecimalSchemaTransformer : IOpenApiSchemaTransformer
 {
     public Task TransformAsync(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken cancellationToken)
     {
-        var type = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type;
+        var underlying = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type);
+        var type = underlying ?? context.JsonTypeInfo.Type;
         if (type == typeof(decimal))
         {
-            schema.Type = JsonSchemaType.Number;
+            schema.Type = underlying is not null || schema.Type?.HasFlag(JsonSchemaType.Null) == true
+                ? JsonSchemaType.Number | JsonSchemaType.Null
+                : JsonSchemaType.Number;
             schema.Format = "decimal";
             schema.Pattern = null;
         }
@@ -87,6 +90,35 @@ public sealed class OperationConventionsTransformer : IOpenApiOperationTransform
                         ["application/problem+json"] = new() { Schema = new OpenApiSchemaReference("ProblemDetails", context.Document) },
                     },
                 };
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class OperationExamplesTransformer : IOpenApiOperationTransformer
+{
+    private const string JsonMediaType = "application/json";
+
+    public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken)
+    {
+        if (operation.OperationId is not { } operationId)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (EndpointDocs.Example(operationId, "request") is { } request && operation.RequestBody?.Content?.TryGetValue(JsonMediaType, out var requestMedia) == true)
+        {
+            requestMedia.Example = request;
+        }
+
+        if (EndpointDocs.Example(operationId, "response") is { } response && operation.Responses is { } responses)
+        {
+            var success = responses.FirstOrDefault(pair => pair.Key.StartsWith('2')).Value;
+            if (success?.Content?.TryGetValue(JsonMediaType, out var responseMedia) == true)
+            {
+                responseMedia.Example = response;
             }
         }
 
