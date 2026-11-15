@@ -1,0 +1,12 @@
+{
+  "url": "https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/json/Consulta_DNPRC?RefCat=0000000AA0000A",
+  "finalUrl": "https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/json/Consulta_DNPRC?RefCat=0000000AA0000A",
+  "status": 200,
+  "recordedAt": "2026-11-15T22:42:59.345590+00:00",
+  "contentType": "application/json; charset=utf-8",
+  "etag": null,
+  "lastModified": null,
+  "cacheControl": "private",
+  "server": null,
+  "bytes": 134
+}
