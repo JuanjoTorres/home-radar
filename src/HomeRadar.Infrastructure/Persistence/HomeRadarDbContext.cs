@@ -2,6 +2,7 @@ using HomeRadar.Application.Ports;
 using HomeRadar.Domain.Common;
 using HomeRadar.Domain.Configuration;
 using HomeRadar.Domain.Finance;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Outbox;
 using HomeRadar.Domain.Profiles;
@@ -42,6 +43,12 @@ public sealed class HomeRadarDbContext(DbContextOptions<HomeRadarDbContext> opti
     public DbSet<TaxRuleSet> TaxRuleSets => Set<TaxRuleSet>();
 
     public DbSet<ListingAnalysis> ListingAnalyses => Set<ListingAnalysis>();
+
+    public DbSet<ListingRenovationOverride> RenovationOverrides => Set<ListingRenovationOverride>();
+
+    public DbSet<CadastralParcel> CadastralParcels => Set<CadastralParcel>();
+
+    public DbSet<ReferenceRate> ReferenceRates => Set<ReferenceRate>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

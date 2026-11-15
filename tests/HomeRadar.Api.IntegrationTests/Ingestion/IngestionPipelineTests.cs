@@ -128,7 +128,11 @@ public sealed class IngestionPipelineTests(DatabaseFixture fixture)
             var db = scope.ServiceProvider.GetRequiredService<HomeRadarDbContext>();
             var analyses = await db.ListingAnalyses.ToListAsync(TestContext.Current.CancellationToken);
             analyses.Count.ShouldBe(2);
-            analyses.Select(analysis => analysis.Verdict).ShouldBe([AffordabilityVerdict.Affordable, AffordabilityVerdict.NotAffordable], ignoreOrder: true);
+            var inca = await db.Listings.SingleAsync(listing => listing.Title == "Piso en Inca", TestContext.Current.CancellationToken);
+            analyses.Single(analysis => analysis.ListingId == inca.Id).Verdict.ShouldBe(AffordabilityVerdict.Affordable);
+            analyses.Single(analysis => analysis.ListingId != inca.Id).Verdict.ShouldBe(AffordabilityVerdict.NotAffordable);
+            inca.RenovationLevel.ShouldBe(HomeRadar.Domain.Intelligence.RenovationLevel.ReadyToMoveIn);
+            inca.Score.ShouldNotBeNull();
         }
 
         var alert = sent.ShouldHaveSingleItem();
@@ -177,6 +181,7 @@ public sealed class IngestionPipelineTests(DatabaseFixture fixture)
         services.AddSingleton<TimeProvider>(clock);
         services.AddSingleton<ISourceAdapterRegistry>(new FakeRegistry(adapter));
         services.AddSingleton<INotificationChannel>(new RecordingChannel(sent));
+        services.AddSingleton<ICadastreClient>(new FakeCadastreClient());
         return services.BuildServiceProvider();
     }
 
@@ -197,6 +202,7 @@ public sealed class IngestionPipelineTests(DatabaseFixture fixture)
         ExternalId = id,
         Url = new Uri($"https://fake.test/{id}"),
         Title = title,
+        Description = "Piso para entrar a vivir",
         Price = Money.Euros(price),
         BuiltArea = new Area(95),
         Rooms = 3,

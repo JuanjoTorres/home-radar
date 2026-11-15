@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Profiles;
 using HomeRadar.Domain.ValueObjects;
@@ -123,12 +124,12 @@ public static class ListingFilterSpecification
 
         if (filter.YearBuiltMin is { } yearMin)
         {
-            predicate = predicate.And(l => l.YearBuilt != null && l.YearBuilt >= yearMin);
+            predicate = predicate.And(l => (l.CadastralYearBuilt ?? l.YearBuilt) != null && (l.CadastralYearBuilt ?? l.YearBuilt) >= yearMin);
         }
 
         if (filter.YearBuiltMax is { } yearMax)
         {
-            predicate = predicate.And(l => l.YearBuilt != null && l.YearBuilt <= yearMax);
+            predicate = predicate.And(l => (l.CadastralYearBuilt ?? l.YearBuilt) != null && (l.CadastralYearBuilt ?? l.YearBuilt) <= yearMax);
         }
 
         if (filter.DaysOnMarketMin is { } domMin)
@@ -184,6 +185,23 @@ public static class ListingFilterSpecification
         if (!filter.IncludeNewBuild)
         {
             predicate = predicate.And(l => !l.IsNewBuild);
+        }
+
+        if (filter.MinScore is { } minScore)
+        {
+            predicate = predicate.And(l => l.Score != null && l.Score >= minScore);
+        }
+
+        if (filter.RenovationLevels.Count > 0)
+        {
+            var levels = filter.RenovationLevels.Cast<RenovationLevel?>().ToList();
+            predicate = predicate.And(l => levels.Contains(l.RenovationLevel));
+        }
+
+        if (filter.ExcludeRedFlags.Count > 0)
+        {
+            var excluded = filter.ExcludeRedFlags.ToList();
+            predicate = predicate.And(l => !l.RedFlagCodes.Any(code => excluded.Contains(code)));
         }
 
         if (affordability is not null)

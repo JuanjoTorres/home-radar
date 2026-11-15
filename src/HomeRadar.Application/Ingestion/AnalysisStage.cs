@@ -1,4 +1,5 @@
 using HomeRadar.Application.Analysis;
+using HomeRadar.Application.Intelligence;
 using HomeRadar.Domain.Common;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Profiles;
@@ -6,38 +7,36 @@ using Microsoft.Extensions.Logging;
 
 namespace HomeRadar.Application.Ingestion;
 
-public sealed partial class AnalysisStage(AnalysisService analysis, ILogger<AnalysisStage> logger) : IIngestionStage
+public sealed partial class AnalysisStage(AnalysisService analysis, ListingInsightService insights, ILogger<AnalysisStage> logger) : IIngestionStage
 {
+    private static readonly ListingEventType[] Triggers = [ListingEventType.PriceChanged, ListingEventType.Relisted, ListingEventType.DescriptionChanged, ListingEventType.FeaturesChanged];
+
     private Result<FinancingProfile>? _defaultProfile;
 
     public int Order => StageOrder.Analyze;
 
     public async Task ExecuteAsync(IngestionContext context, CancellationToken cancellationToken)
     {
-        if (!context.ShouldContinue || context.Listing!.Price is null)
+        if (!context.ShouldContinue)
         {
             return;
         }
 
-        if (!context.IsNew && !context.NewEvents.Any(listingEvent => listingEvent.Type is ListingEventType.PriceChanged or ListingEventType.Relisted))
+        if (!context.IsNew && !context.NewEvents.Any(listingEvent => Triggers.Contains(listingEvent.Type)))
         {
             return;
         }
 
         _defaultProfile ??= await analysis.ResolveProfileAsync(null, cancellationToken);
-        if (!_defaultProfile.Value.IsSuccess)
-        {
-            return;
-        }
-
-        var result = await analysis.AnalyzeAsync(context.Listing, _defaultProfile.Value.Value!, cancellationToken);
+        var profile = _defaultProfile.Value.IsSuccess ? _defaultProfile.Value.Value : null;
+        var result = await insights.RefreshAsync(context.Listing!, profile, cancellationToken);
         if (result.IsSuccess)
         {
-            context.Analysis = result.Value!.Analysis;
+            context.Analysis = result.Value!.Financial?.Analysis;
         }
         else
         {
-            AnalysisSkipped(logger, context.Listing.Id, result.Error!.Code);
+            AnalysisSkipped(logger, context.Listing!.Id, result.Error!.Code);
         }
     }
 

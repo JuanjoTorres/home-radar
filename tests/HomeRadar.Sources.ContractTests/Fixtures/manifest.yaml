@@ -25,3 +25,20 @@ sources:
     url: https://www.inmobiliariamir.es/ficha/piso/llucmajor/s-arenal/4445/29483722/es/
   - name: mir-robots
     url: https://www.inmobiliariamir.es/robots.txt
+- key: catastro
+  pages:
+  - name: rccoor-palma-centre
+    url: https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCoordenadas.svc/json/Consulta_RCCOOR?CoorX=2.650400&CoorY=39.571500&SRS=EPSG:4326
+    followTemplate:
+      name: dnprc-palma-centre
+      pattern: '"pc1":"([0-9A-Z]{7})","pc2":"([0-9A-Z]{7})"'
+      url: https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/json/Consulta_DNPRC?RefCat={0}{1}
+  - name: rccoor-sea
+    url: https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCoordenadas.svc/json/Consulta_RCCOOR?CoorX=2.600000&CoorY=39.400000&SRS=EPSG:4326
+  - name: dnprc-not-found
+    url: https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/json/Consulta_DNPRC?RefCat=0000000AA0000A
+- key: bde
+  pages:
+  - name: euribor-be1901
+    url: https://www.bde.es/webbe/es/estadisticas/compartido/datos/csv/be1901.csv
+    extension: csv

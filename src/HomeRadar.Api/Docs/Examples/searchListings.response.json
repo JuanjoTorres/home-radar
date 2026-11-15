@@ -1,0 +1,84 @@
+{
+  "items": [
+    {
+      "id": "01a1e156-b363-730e-9d75-a7fc2d30c8dc",
+      "dwellingId": null,
+      "sourceKey": "solvia",
+      "sellerType": "Servicer",
+      "externalId": "c0",
+      "url": "https://example.test/c0",
+      "title": "Piso 0",
+      "price": {
+        "amount": 170000.0,
+        "currency": "EUR"
+      },
+      "pricePerSquareMetre": 2125,
+      "builtSquareMetres": 80.0,
+      "usableSquareMetres": null,
+      "rooms": 3,
+      "bathrooms": 1,
+      "propertyType": "Flat",
+      "municipality": "Inca",
+      "zone": null,
+      "location": null,
+      "status": "Active",
+      "possession": "Unknown",
+      "firstSeenAt": "2026-08-20T08:00:00+00:00",
+      "lastSeenAt": "2026-08-20T08:00:00+00:00",
+      "publishedAt": null,
+      "daysOnMarket": 87,
+      "priceDrops": 0,
+      "cumulativeDropPercent": 0,
+      "mainPhotoUrl": null,
+      "score": 88,
+      "renovationLevel": "ReadyToMoveIn",
+      "renovationCost": {
+        "amount": 0.0,
+        "currency": "EUR"
+      },
+      "redFlags": [],
+      "yearBuilt": 2010
+    },
+    {
+      "id": "01a1e156-b3e8-76e9-b366-241eaf0999d9",
+      "dwellingId": null,
+      "sourceKey": "solvia",
+      "sellerType": "Servicer",
+      "externalId": "c1",
+      "url": "https://example.test/c1",
+      "title": "Piso 1",
+      "price": {
+        "amount": 182000.0,
+        "currency": "EUR"
+      },
+      "pricePerSquareMetre": 2246.91,
+      "builtSquareMetres": 81.0,
+      "usableSquareMetres": null,
+      "rooms": 3,
+      "bathrooms": 1,
+      "propertyType": "Flat",
+      "municipality": "Inca",
+      "zone": null,
+      "location": null,
+      "status": "Active",
+      "possession": "Unknown",
+      "firstSeenAt": "2026-08-20T08:00:00+00:00",
+      "lastSeenAt": "2026-08-20T08:00:00+00:00",
+      "publishedAt": null,
+      "daysOnMarket": 87,
+      "priceDrops": 0,
+      "cumulativeDropPercent": 0,
+      "mainPhotoUrl": null,
+      "score": 85,
+      "renovationLevel": "ReadyToMoveIn",
+      "renovationCost": {
+        "amount": 0.0,
+        "currency": "EUR"
+      },
+      "redFlags": [],
+      "yearBuilt": 2010
+    }
+  ],
+  "nextCursor": "ODV8MDFhMWUxNTZiM2U4NzZlOWIzNjYyNDFlYWYwOTk5ZDk",
+  "hasMore": true
+}

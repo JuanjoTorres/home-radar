@@ -56,9 +56,9 @@ def fetch(url: str, method: str = "GET", body: dict | None = None, headers: dict
         return error.code, dict(error.headers.items()), error.read() if error.fp else b"", url
 
 
-def save(target_dir: Path, name: str, url: str, status: int, headers: dict[str, str], body: bytes, final_url: str) -> None:
+def save(target_dir: Path, name: str, url: str, status: int, headers: dict[str, str], body: bytes, final_url: str, extension: str | None = None) -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
-    extension = "json" if body[:1] in (b"{", b"[") else "html"
+    extension = extension or ("json" if body[:1] in (b"{", b"[") else "html")
     (target_dir / f"{name}.{extension}").write_bytes(body)
     meta = {
         "url": url,
@@ -96,7 +96,7 @@ def main(manifest_path: str, root: str, only: str | None) -> int:
                 continue
             status, headers, body, final_url = fetch(url, page.get("method", "GET"), page.get("body"), page.get("headers"))
             print(f"[{source['key']}] {page['name']}: {status} {len(body)} bytes", flush=True)
-            save(target_dir, page["name"], url, status, headers, body, final_url)
+            save(target_dir, page["name"], url, status, headers, body, final_url, page.get("extension"))
             if status >= 400:
                 failures += 1
             time.sleep(DELAY_SECONDS)
@@ -110,6 +110,17 @@ def main(manifest_path: str, root: str, only: str | None) -> int:
                     time.sleep(DELAY_SECONDS)
                 else:
                     print(f"[{source['key']}] no detail link matched {follow['pattern']} or robots disallowed", flush=True)
+            template = page.get("followTemplate")
+            if template and status == 200:
+                match = re.search(template["pattern"], body.decode("utf-8", errors="replace"))
+                next_url = template["url"].format(*match.groups()) if match else None
+                if next_url and robots_allows(next_url, robots_cache):
+                    t_status, t_headers, t_body, t_final = fetch(next_url)
+                    print(f"[{source['key']}] {template['name']}: {t_status} {len(t_body)} bytes ({next_url})", flush=True)
+                    save(target_dir, template["name"], next_url, t_status, t_headers, t_body, t_final, template.get("extension"))
+                    time.sleep(DELAY_SECONDS)
+                else:
+                    print(f"[{source['key']}] template {template['name']} did not match or robots disallowed", flush=True)
     return 1 if failures else 0
 
 

@@ -1,4 +1,7 @@
 using System.Net;
+using HomeRadar.Application.Ports;
+using HomeRadar.Infrastructure.Cadastre;
+using HomeRadar.Infrastructure.ReferenceData;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -43,6 +46,8 @@ public static class SourceHttpServiceCollectionExtensions
                 resilience.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(2);
             });
 
+        services.AddSingleton<IEuriborFeed, BdeEuriborFeed>();
+        services.AddSingleton<ICadastreClient, CatastroOvcClient>();
         return services;
     }
 }

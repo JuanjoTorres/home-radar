@@ -1,4 +1,5 @@
 using HomeRadar.Application.Notifications;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.ValueObjects;
 
@@ -32,5 +33,29 @@ public sealed class ListingMessageFormatterTests
         text.ShouldContain("Alertas: Inca hasta 260k");
         text.ShouldEndWith(listing.Url.ToString());
         text.Length.ShouldBeLessThan(600);
+        text.ShouldNotContain("📊");
+    }
+
+    [Fact]
+    public void Message_shows_score_renovation_and_red_flags()
+    {
+        var listing = Listing.Create(Guid.NewGuid(), "solvia", SellerType.Servicer, new ListingObservation
+        {
+            ExternalId = "2",
+            Url = new Uri("https://example.test/2"),
+            Title = "Piso en Manacor",
+            Price = Money.Euros(150000),
+            BuiltArea = new Area(80),
+            PropertyType = PropertyType.Flat,
+            Municipality = "Manacor",
+        }, DateTimeOffset.UtcNow);
+        listing.ApplyIntelligence(RenovationLevel.Full, 90_728m, false, 27, ["occupied", "unknownCode"], DateTimeOffset.UtcNow).ShouldBeTrue();
+        listing.ApplyIntelligence(RenovationLevel.Full, 90_728m, false, 27, ["unknownCode", "occupied"], DateTimeOffset.UtcNow).ShouldBeFalse();
+
+        var text = ListingMessageFormatter.NewListing(listing, "Solvia", []);
+
+        text.ShouldContain("📊 Puntuación 27/100");
+        text.ShouldContain("🛠️ Reforma integral ~90.728 €");
+        text.ShouldContain("🚩 Ocupada · unknownCode");
     }
 }

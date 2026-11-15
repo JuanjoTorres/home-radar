@@ -87,6 +87,7 @@ v1.MapProfileEndpoints();
 v1.MapWatchlistEndpoints();
 v1.MapSourceEndpoints();
 v1.MapAnalysisEndpoints();
+v1.MapIntelligenceEndpoints();
 
 if (builder.Configuration.GetValue("Database:MigrateOnStartup", false))
 {

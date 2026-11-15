@@ -17,6 +17,9 @@ public enum ListingSortDto
     /// <summary>Lowest price per built square metre first.</summary>
     PricePerM2,
 
+    /// <summary>Highest opportunity score first; listings without a score last.</summary>
+    ScoreDesc,
+
     /// <summary>Largest cumulative price drop first.</summary>
     PriceDropDesc,
 }
@@ -102,6 +105,21 @@ public sealed record ListingSummaryDto
     /// <summary>First photo, when any.</summary>
     public Uri? MainPhotoUrl { get; init; }
 
+    /// <summary>Opportunity score 0–100 for the default financing profile, refreshed on every change and daily.</summary>
+    public int? Score { get; init; }
+
+    /// <summary>Estimated (or manually set) renovation level: ReadyToMoveIn, Light, Medium or Full.</summary>
+    public string? RenovationLevel { get; init; }
+
+    /// <summary>Most likely renovation cost, VAT included.</summary>
+    public MoneyDto? RenovationCost { get; init; }
+
+    /// <summary>Red flag codes (see getListingAnalysis for details).</summary>
+    public IReadOnlyList<string> RedFlags { get; init; } = [];
+
+    /// <summary>Construction year: Catastro when matched, else the listing.</summary>
+    public int? YearBuilt { get; init; }
+
     public static ListingSummaryDto From(Listing listing, DateTimeOffset now) => new()
     {
         Id = listing.Id,
@@ -130,6 +148,11 @@ public sealed record ListingSummaryDto
         PriceDrops = listing.PriceDropCount,
         CumulativeDropPercent = listing.CumulativeDropPercent,
         MainPhotoUrl = listing.Photos.OrderBy(photo => photo.Position).FirstOrDefault()?.Url,
+        Score = listing.Score,
+        RenovationLevel = listing.RenovationLevel?.ToString(),
+        RenovationCost = listing.RenovationProbableCost is { } cost ? new MoneyDto(cost) : null,
+        RedFlags = listing.RedFlagCodes,
+        YearBuilt = listing.EffectiveYearBuilt,
     };
 }
 
@@ -272,8 +295,17 @@ public sealed record ListingSearchRequestDto
     /// <summary>Include new-build listings; defaults to true.</summary>
     public bool IncludeNewBuild { get; init; } = true;
 
-    /// <summary>Return only what the buyer can pay, taxes and closing costs included (renovation from phase 3). See <c>calculateMaximumAffordablePrice</c> for the calculation.</summary>
+    /// <summary>Return only what the buyer can pay, taxes, closing costs and the estimated (or manual) renovation included. See <c>calculateMaximumAffordablePrice</c> for the calculation.</summary>
     public AffordabilityFilterDto? Affordability { get; init; }
+
+    /// <summary>Minimum opportunity score (0–100).</summary>
+    public int? MinScore { get; init; }
+
+    /// <summary>Renovation levels to keep: ReadyToMoveIn, Light, Medium, Full.</summary>
+    public IReadOnlyList<string> RenovationLevels { get; init; } = [];
+
+    /// <summary>Red flag codes to exclude, e.g. occupied, noPossession, noHabitabilityCertificate.</summary>
+    public IReadOnlyList<string> ExcludeRedFlags { get; init; } = [];
 
     /// <summary>Sort order; defaults to FirstSeenDesc.</summary>
     public ListingSortDto Sort { get; init; } = ListingSortDto.FirstSeenDesc;

@@ -2,26 +2,835 @@
 # market estimates of closing costs. Each (validFrom, revision) is an immutable row in business_config_versions;
 # analyses keep the id of the version they used. Add a revision instead of editing a published one.
 versions:
-  - validFrom: "2026-11-01"
-    revision: 1
-    source: "Euríbor October 2026 (Banco de España press note 2026-11-03); thresholds and estimates from docs/fiscalidad-baleares.md §3.3 and §5"
-    config:
-      defaultJurisdiction: ES-IB
-      euribor:
-        twelveMonthPercent: 3.239
-        month: "2026-10"
-        sourceUrl: "https://www.bde.es/f/webbe/GAP/Secciones/SalaPrensa/NotasInformativas/26/presbe2026-104.pdf"
-      rateScenarios:
-        - { name: base, euriborDeltaPercent: 0 }
-        - { name: plus1, euriborDeltaPercent: 1 }
-        - { name: plus2, euriborDeltaPercent: 2 }
-      stressScenario: plus2
-      affordability:
-        borderlineCashShortfallMax: 5000
-        borderlineDebtToIncomeTolerance: 0.03
-        maxAgeAtLoanMaturity: 75
-        renovationContingencyPercent: 10
-      closingCosts:
-        gestoriaEur: 400
-        appraisalEur: 450
-        sourceUrl: "https://www.hipotecalc.com/itp/baleares"
+- validFrom: '2026-11-01'
+  revision: 1
+  source: Euríbor October 2026 (Banco de España press note 2026-11-03); thresholds and estimates from docs/fiscalidad-baleares.md §3.3 and §5
+  config:
+    defaultJurisdiction: ES-IB
+    euribor:
+      twelveMonthPercent: 3.239
+      month: 2026-10
+      sourceUrl: https://www.bde.es/f/webbe/GAP/Secciones/SalaPrensa/NotasInformativas/26/presbe2026-104.pdf
+    rateScenarios:
+    - name: base
+      euriborDeltaPercent: 0
+    - name: plus1
+      euriborDeltaPercent: 1
+    - name: plus2
+      euriborDeltaPercent: 2
+    stressScenario: plus2
+    affordability:
+      borderlineCashShortfallMax: 5000
+      borderlineDebtToIncomeTolerance: 0.03
+      maxAgeAtLoanMaturity: 75
+      renovationContingencyPercent: 10
+    closingCosts:
+      gestoriaEur: 400
+      appraisalEur: 450
+      sourceUrl: https://www.hipotecalc.com/itp/baleares
+- validFrom: '2026-11-15'
+  revision: 1
+  source: 'Phase 3: renovation, red flags and negotiation from docs/research (2026-11-15); renovation contingency raised to 15 %'
+  config:
+    defaultJurisdiction: ES-IB
+    euribor:
+      twelveMonthPercent: 3.239
+      month: 2026-10
+      sourceUrl: https://www.bde.es/f/webbe/GAP/Secciones/SalaPrensa/NotasInformativas/26/presbe2026-104.pdf
+    rateScenarios:
+    - name: base
+      euriborDeltaPercent: 0
+    - name: plus1
+      euriborDeltaPercent: 1
+    - name: plus2
+      euriborDeltaPercent: 2
+    stressScenario: plus2
+    affordability:
+      borderlineCashShortfallMax: 5000
+      borderlineDebtToIncomeTolerance: 0.03
+      maxAgeAtLoanMaturity: 75
+      renovationContingencyPercent: 15
+    closingCosts:
+      gestoriaEur: 400
+      appraisalEur: 450
+      sourceUrl: https://www.hipotecalc.com/itp/baleares
+    renovation:
+      defaultBuiltAreaSquareMetres: 80
+      regionalFactor: 1.2
+      permitAndTaxPercent: 3.1
+      recentRenovationMaxAgeYears: 15
+      recentRenovationPattern: (reformad[oa]|reformat|renovated|renoviert|saniert)\D{0,15}((19|20)\d{2})
+      sourceUrl: docs/research/reforma-mallorca.md
+      note: Mallorca values (regional factor 1.20 already applied, not officially verified). Totals use the level €/m²; items are an indicative breakdown and the rest goes to otherWorks.
+      levels:
+      - level: ReadyToMoveIn
+        minPerSquareMetre: 0
+        probablePerSquareMetre: 0
+        maxPerSquareMetre: 0
+      - level: Light
+        minPerSquareMetre: 120
+        probablePerSquareMetre: 220
+        maxPerSquareMetre: 400
+        description: Masonry repairs, carpentry touch-ups, lighting and other light works
+        sourceUrl: https://cuantomecuesta.com/es/reformar-piso/
+      - level: Medium
+        minPerSquareMetre: 450
+        probablePerSquareMetre: 650
+        maxPerSquareMetre: 950
+        description: Masonry, partial installations, carpentry and other works of a medium renovation
+        sourceUrl: https://cuantomecuesta.com/es/reformar-piso/
+      - level: Full
+        minPerSquareMetre: 800
+        probablePerSquareMetre: 1100
+        maxPerSquareMetre: 1600
+        description: Masonry, distribution, insulation, carpentry and other works of a full renovation
+        sourceUrl: https://www.idealista.com/ca/news/node/905678
+      items:
+      - code: kitchen
+        name: Full kitchen
+        unit: Unit
+        quantity: Fixed
+        fixedQuantity: 1
+        min: 7000
+        probable: 11000
+        max: 18000
+        appliesTo:
+        - Medium
+        - Full
+        sourceUrl: https://www.cronoshare.com/cuanto-cuesta/reforma-integral/palma-de-mallorca
+      - code: bathroom
+        name: Full bathroom
+        unit: Unit
+        quantity: Bathrooms
+        fixedQuantity: 1
+        min: 4000
+        probable: 6000
+        max: 9000
+        appliesTo:
+        - Medium
+        - Full
+        sourceUrl: https://www.cronoshare.com/cuanto-cuesta/reforma-integral/palma-de-mallorca
+      - code: flooring
+        name: Flooring
+        unit: SquareMetre
+        min: 35
+        probable: 55
+        max: 95
+        appliesTo:
+        - Light
+        - Full
+        sourceUrl: https://www.habitissimo.es/presupuestos/suelo-porcelanico
+      - code: painting
+        name: Painting
+        unit: SquareMetre
+        min: 14
+        probable: 25
+        max: 45
+        appliesTo:
+        - Light
+        - Medium
+        - Full
+        sourceUrl: https://www.habitissimo.es/presupuestos/pintar-piso
+      - code: electrical
+        name: Electrical installation renewal with certificate
+        unit: SquareMetre
+        min: 40
+        probable: 60
+        max: 85
+        appliesTo:
+        - Full
+        sourceUrl: https://www.elespanol.com/mujer/interiorismo/20260719/electricista-reformar-casa-cambiar-instalacion-electrica-costaba-eur-ahora-supera/1003744319172_0.html
+      - code: electricalCertificate
+        name: Electrical certificate (boletín)
+        unit: Dwelling
+        min: 100
+        probable: 180
+        max: 360
+        appliesTo:
+        - Medium
+        sourceUrl: https://www.ocu.org/vivienda-y-energia/gas-luz/consejos/boletin-electrico
+      - code: plumbing
+        name: Plumbing renewal
+        unit: Dwelling
+        min: 2000
+        probable: 3800
+        max: 6000
+        appliesTo:
+        - Full
+        sourceUrl: https://www.cronoshare.com/cuanto-cuesta/reforma-integral/palma-de-mallorca
+      - code: window
+        name: Windows (one per room plus two)
+        unit: Unit
+        quantity: Rooms
+        fixedQuantity: 1
+        quantityOffset: 2
+        min: 350
+        probable: 550
+        max: 850
+        appliesTo:
+        - Full
+        sourceUrl: https://www.habitissimo.es/presupuestos/cambiar-ventanas
+      - code: interiorDoor
+        name: Interior doors (one per room plus two)
+        unit: Unit
+        quantity: Rooms
+        fixedQuantity: 1
+        quantityOffset: 2
+        min: 200
+        probable: 350
+        max: 700
+        appliesTo:
+        - Full
+        sourceUrl: https://www.elespanol.com/mujer/interiorismo/20260725/carpintero-poner-puertas-nuevas-casa-euros-unidad-ahora-pasan/1003744328690_0.html
+      - code: dhwHeatPump
+        name: Heat-pump water heater
+        unit: Unit
+        quantity: Fixed
+        fixedQuantity: 1
+        min: 2200
+        probable: 2700
+        max: 4700
+        appliesTo:
+        - Full
+        sourceUrl: https://habitissimo.es/presupuestos/aerotermia
+      - code: demolitionDebris
+        name: Demolition and debris removal
+        unit: SquareMetre
+        min: 25
+        probable: 35
+        max: 50
+        appliesTo:
+        - Full
+        sourceUrl: https://www.cronoshare.com/cuanto-cuesta/reforma-integral/palma-de-mallorca
+      ageRules:
+      - builtBefore: 1980
+        minimumLevel: Full
+        reason: 'before 1980: no insulation, possible aluminous cement (1955-1977), asbestos and original wiring'
+      - builtBefore: 2003
+        minimumLevel: Medium
+        reason: '1980-2002: asbestos possible until the 2002 ban and wiring older than REBT 2002'
+      - builtBefore: 2009
+        minimumLevel: Light
+        reason: '2003-2008: windows and insulation before the 2006 building code took effect'
+      negations:
+      - no necesita
+      - sin necesidad de
+      - no requiere
+      - no hace falta
+      - no need
+      - does not need
+      - keine
+      - sense necessitat
+      - no cal
+      keywords:
+      - level: Full
+        phrases:
+        - ruina
+        - en ruinas
+        - para derribar
+        - a demoler
+        - a rehabilitar
+        - para rehabilitar
+        - a reformar
+        - para reformar
+        - necesita reforma
+        - necesita reforma completa
+        - necesita obras
+        - estado original
+        - original de los
+        - para restaurar
+        - per reformar
+        - necessita reforma
+        - estat original
+        - per rehabilitar
+        - per enderrocar
+        - ruïna
+        - to renovate
+        - needs renovation
+        - in need of renovation
+        - needs complete renovation
+        - renovation project
+        - fixer-upper
+        - restoration project
+        - original condition
+        - for demolition
+        - renovierungsbedürftig
+        - sanierungsbedürftig
+        - sanierungsobjekt
+        - renovierungsobjekt
+        - handwerkerobjekt
+        - restaurierungsobjekt
+        - originalzustand
+        - abrissobjekt
+        - totalsanierung
+      - level: Medium
+        phrases:
+        - para actualizar
+        - a actualizar
+        - necesita actualización
+        - necesita algunas reformas
+        - parcialmente reformado
+        - cocina original
+        - baños originales
+        - para modernizar
+        - anticuado
+        - per actualitzar
+        - parcialment reformat
+        - cuina original
+        - needs updating
+        - needs some work
+        - partially renovated
+        - original kitchen
+        - dated
+        - outdated
+        - modernisierungsbedürftig
+        - modernisierungsbedarf
+        - teilrenoviert
+        - teilsaniert
+        - veraltet
+      - level: Light
+        phrases:
+        - lavado de cara
+        - necesita pintura
+        - pequeñas reformas
+        - algunos retoques
+        - mejorable
+        - buen estado
+        - rentat de cara
+        - petites reformes
+        - bon estat
+        - cosmetic updates
+        - lick of paint
+        - minor works
+        - good condition
+        - schönheitsreparaturen
+        - leicht renovierungsbedürftig
+        - kleinere renovierungsarbeiten
+        - guter zustand
+      - level: ReadyToMoveIn
+        phrases:
+        - recién reformado
+        - totalmente reformado
+        - reformado a estrenar
+        - a estrenar
+        - obra nueva
+        - para entrar a vivir
+        - listo para entrar a vivir
+        - llave en mano
+        - impecable
+        - como nuevo
+        - totalment reformat
+        - acabat de reformar
+        - obra nova
+        - per entrar a viure
+        - clau en mà
+        - newly renovated
+        - fully renovated
+        - recently refurbished
+        - completely refurbished
+        - move-in ready
+        - ready to live in
+        - turnkey
+        - brand new
+        - new build
+        - immaculate
+        - frisch renoviert
+        - komplett renoviert
+        - kernsaniert
+        - bezugsfertig
+        - sofort bewohnbar
+        - schlüsselfertig
+        - erstbezug
+        - neubau
+        - neuwertig
+      visitChecklist:
+      - level: ReadyToMoveIn
+        checks:
+        - Valid habitability certificate (cédula, valid 10 years)
+        - Building evaluation report (IEE) if the building is 50 years or older, and pending levies
+        - Energy certificate rating and year
+        - 'Electrical certificate (boletín) year: older than 20 years needs a review to change power or holder'
+        - Permits for past works, especially closed terraces or new layouts
+        - Electrical panel with main switch, 30 mA differentials, several circuits and earthed sockets
+        - Water pressure, hot water and cisterns
+        - 'Windows: thermal break and double glazing'
+        - Damp or mould on ceilings, corners and north walls
+        - Air conditioning units, age and gas type
+        - Water heater type and year
+      - level: Medium
+        checks:
+        - 'Pipe material under the sink and at the meter: lead or galvanised iron means renewing the plumbing (RD 3/2023)'
+        - 'Fibre-cement downpipes or tanks: possible asbestos before 2002'
+        - Kitchen units, worktop and water and gas connections
+        - 'Bathrooms: tray or tub, ventilation, cracks and black joints'
+        - Hollow-sounding tiles; original hydraulic tiles worth keeping
+        - 'Gotelé on walls: removing it raises painting cost'
+      - level: Full
+        checks:
+        - 'Aluminosis (buildings 1955-1977): cracks along joists, rust and spalling; ask for a test before signing'
+        - 'Rising damp, very common on Mallorca ground floors: salt marks on the lower metre of walls'
+        - 'Structure: diagonal cracks, sagging floors, doors that rub'
+        - 'Roof or terrace: waterproofing, broken tiles, fibre-cement roofing, gutters'
+        - 'Façade and balconies: spalling and exposed rusty rebar'
+        - 'Old wiring: porcelain fuses, cloth cables, no earth'
+        - 'Load-bearing partitions: touching the structure needs a major licence with an architect project'
+        - Power upgrade with the distributor can cost from 2,000 EUR and take 2-4 months
+        - 'Protected buildings or Palma old town: more permits and higher cost'
+    redFlags:
+      areaRatioLow: 1.05
+      areaRatioMedium: 1.15
+      areaRatioHigh: 1.3
+      areaRatioBelow: 0.7
+      inspectionAgeYears: 50
+      inspectionDoneKeywords:
+      - iee favorable
+      - ite favorable
+      - ite pasada
+      - ite realizada
+      - iee realizado
+      - iee al día
+      - ite al día
+      - iee aprobado
+      riskPenalty:
+        Low: 10
+        Medium: 25
+        High: 50
+        Critical: 100
+      rules:
+      - code: noPossession
+        severity: Critical
+        description: 'Sold without possession or keys: no viewing, no appraisal, no standard mortgage'
+        keywords:
+        - sin posesión
+        - sin llaves
+        - no visitable
+        - no se puede visitar
+        - no hipotecable
+        - sense possessió
+        - sense claus
+        - no possession
+        - no keys
+        - cannot be viewed
+        - no viewings
+        - ohne besitz
+        - ohne schlüssel
+        - keine besichtigung möglich
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: occupied
+        severity: Critical
+        description: 'Occupied without title: long and costly eviction, not appraisable'
+        keywords:
+        - ocupado
+        - ocupada
+        - okupado
+        - okupada
+        - okupas
+        - ocupantes sin título
+        - ocupación ilegal
+        - ocupat
+        - okupes
+        - squatters
+        - illegally occupied
+        - hausbesetzer
+        - illegal bewohnt
+        exclusions:
+        - plaza de garaje ocupada
+        - parking ocupado
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: auctionAssignment
+        severity: Critical
+        description: 'Auction assignment (cesión de remate) or loan sale: you buy a procedural right, usually without possession'
+        keywords:
+        - cesión de remate
+        - cesion remate
+        - subasta judicial
+        - procedente de subasta
+        - adjudicación judicial
+        - npl
+        - cessió de remat
+        - subhasta
+        - auction assignment
+        - court auction
+        - loan sale
+        - zuschlagsabtretung
+        - zwangsversteigerung
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: bareOwnership
+        severity: Critical
+        description: 'Bare ownership: you cannot live in it until the usufruct ends'
+        keywords:
+        - nuda propiedad
+        - usufructo
+        - usufructuario
+        - nua propietat
+        - usdefruit
+        - bare ownership
+        - usufruct
+        - life interest
+        - nacktes eigentum
+        - nießbrauch
+        - lebenslanges wohnrecht
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: undividedShare
+        severity: Critical
+        description: 'Undivided share: no standard mortgage and shared use'
+        keywords:
+        - proindiviso
+        - pro indiviso
+        - cuota indivisa
+        - participación indivisa
+        - mitad indivisa
+        - proindivís
+        - quota indivisa
+        - meitat indivisa
+        - undivided share
+        - co-ownership share
+        - fractional ownership
+        - miteigentumsanteil
+        - bruchteilseigentum
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: protectedRuralLand
+        severity: Critical
+        description: 'Building on protected rustic land: restoration orders never lapse'
+        keywords:
+        - suelo rústico protegido
+        - sòl rústic protegit
+        - anei
+        - arip
+        - área natural de especial interés
+        - protected rural land
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: noHabitabilityCertificate
+        severity: Critical
+        description: 'No habitability certificate: no permanent utilities or rental, mortgage at risk, possible planning breach'
+        keywords:
+        - sin cédula
+        - no tiene cédula
+        - sin habitabilidad
+        - sin licencia de primera ocupación
+        - sense cèdula
+        - sense habitabilitat
+        - no habitation certificate
+        - no cedula
+        - no occupancy licence
+        - ohne cedula
+        - ohne bewohnbarkeitsbescheinigung
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: habitabilityCertificatePending
+        severity: High
+        description: 'Habitability certificate in process or expired: make the deposit conditional on it'
+        keywords:
+        - cédula en trámite
+        - cédula pendiente
+        - cédula caducada
+        - renovar cédula
+        - cèdula en tràmit
+        - cèdula pendent
+        - cèdula caducada
+        - cedula pending
+        - cedula expired
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: ruralLand
+        severity: High
+        description: 'Rustic land: building limits, legalisations and lower appraisals'
+        keywords:
+        - suelo rústico
+        - finca rústica
+        - terreno rústico
+        - sòl rústic
+        - rustic land
+        - rural land
+        - agricultural land
+        - außenbereich
+        exclusions:
+        - estilo rústico
+        - decoración rústica
+        - toque rústico
+        - rustic style
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: outOfPlanning
+        severity: High
+        description: 'Out of planning or unlicensed extension: limited works, certificate and appraisal affected'
+        keywords:
+        - fuera de ordenación
+        - ampliación sin licencia
+        - anexo ilegal
+        - legalizable
+        - pendiente de legalizar
+        - fora d'ordenació
+        - ampliació sense llicència
+        - legalitzable
+        - unlicensed extension
+        - legalisable
+        - ohne baugenehmigung
+        - legalisierbar
+        - baurechtswidrig
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: protectedHousingVpo
+        severity: High
+        description: 'Protected housing (VPO): legal maximum price, buyer requirements and IBAVI pre-emption right'
+        keywords:
+        - vpo
+        - vivienda protegida
+        - protección oficial
+        - hpo
+        - precio tasado
+        - calificación definitiva
+        - habitatge protegit
+        - protecció oficial
+        - preu taxat
+        - social housing
+        - protected housing
+        - sozialwohnung
+        - geförderte wohnung
+        exclusions:
+        - aval ibavi
+        - hipoteca jove
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: investorsOnly
+        severity: High
+        description: '"Investors only" usually hides occupation, a tenant, poor condition or missing documents'
+        keywords:
+        - solo inversores
+        - exclusivo inversores
+        - solo para inversores
+        - només inversors
+        - investors only
+        - nur für investoren
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: cashOnly
+        severity: High
+        description: 'Cash only or not mortgageable: the bank will not lend on it'
+        keywords:
+        - solo contado
+        - solo al contado
+        - no financiable
+        - sin financiación
+        - només al comptat
+        - no finançable
+        - cash only
+        - cash buyers only
+        - not mortgageable
+        - nur barzahlung
+        - keine finanzierung möglich
+        - nicht finanzierbar
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: tenantInPlace
+        severity: High
+        description: 'Sold with a tenant: the lease continues (5 or 7 years) and you cannot move in'
+        keywords:
+        - con inquilino
+        - alquilado
+        - arrendado
+        - con contrato de alquiler
+        - vendido con inquilino
+        - amb llogater
+        - llogat
+        - arrendat
+        - tenanted
+        - sitting tenant
+        - sold with tenant
+        - vermietet
+        - mit mieter
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: seizure
+        severity: High
+        description: 'Registered seizure: it must be cancelled before or at signing'
+        keywords:
+        - con embargo
+        - embargado
+        - anotación de embargo
+        - procedente de embargo
+        - embargament
+        - embargat
+        - seizure
+        - repossessed
+        - pfändung
+        - gepfändet
+        - zwangsvollstreckung
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: newBuildNoCompletion
+        severity: High
+        description: New build without completion certificate or first-occupation licence
+        keywords:
+        - sin final de obra
+        - obra sin terminar
+        - sin licencia de primera ocupación
+        - pendiente de lpo
+        - sense final d'obra
+        - obra sense acabar
+        - no completion certificate
+        - ohne bauabnahme
+        - ohne erstbezugsgenehmigung
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: illegalTouristRental
+        severity: Medium
+        description: 'Advertised for holiday rental: Palma admits no new tourist places and fines reach about 500,000 EUR'
+        keywords:
+        - alquiler vacacional
+        - alquiler turístico
+        - ideal airbnb
+        - lloguer turístic
+        - lloguer vacacional
+        - holiday rental potential
+        - airbnb
+        - ferienvermietung
+        - airbnb tauglich
+        exclusions:
+        - con licencia
+        - licencia turística
+        - licencia etv
+        - amb llicència
+        - with licence
+        - mit lizenz
+        - ferienlizenz vorhanden
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: charges
+        severity: Medium
+        description: 'Encumbrances mentioned: ask for the land registry extract (nota simple)'
+        keywords:
+        - cargas
+        - con cargas
+        - gravámenes
+        - afección fiscal
+        - servidumbre
+        - hipoteca pendiente
+        - càrregues
+        - servitud
+        - encumbrances
+        - easement
+        - belastungen
+        - grundschulden
+        - dienstbarkeit
+        exclusions:
+        - libre de cargas
+        - sin cargas
+        - lliure de càrregues
+        - free of charges
+        - free of encumbrances
+        - lastenfrei
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: communityDebts
+        severity: Medium
+        description: 'Community debts or levies: the property answers for the current and three previous years'
+        keywords:
+        - deudas comunidad
+        - deudas de comunidad
+        - derrama
+        - derrama pendiente
+        - cuotas pendientes
+        - deutes comunitat
+        - community debts
+        - special levy
+        - hausgeldschulden
+        - sonderumlage
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+      - code: priceLimitedHousingVpl
+        severity: Medium
+        description: 'Price-limited housing (VPL): permanent regime and 5-year residence requirement'
+        keywords:
+        - vpl
+        - vivienda de precio limitado
+        - precio limitado
+        - habitatge de preu limitat
+        - hpl
+        - price limited housing
+        - preisbegrenzte wohnung
+        sourceUrl: docs/research/mercado-negociacion-banderas.md
+    negotiation:
+      baseMarginPercent:
+        Private: 6
+        Agency: 6
+        Bank: 8
+        Servicer: 8
+        Auction: 0
+      newBuildBaseMarginPercent: 2
+      perPriceDropPercent: 1.5
+      maxCountedPriceDrops: 3
+      largeCumulativeDropThresholdPercent: 10
+      largeCumulativeDropPercent: 1
+      daysOnMarketGraceDays: 60
+      perThirtyDaysOnMarketPercent: 1
+      maxDaysOnMarketPercent: 5
+      freshListingDays: 14
+      freshListingPercent: -2
+      relistedPercent: 1
+      urgencyPercent: 2
+      urgencyKeywords:
+      - urge venta
+      - urge vender
+      - venta urgente
+      - necesita vender
+      - por traslado
+      - precio negociable
+      - negociable
+      - se escuchan ofertas
+      - escucha ofertas
+      - abierto a ofertas
+      - admite ofertas
+      - acepta ofertas
+      - haga su oferta
+      - urgeix venda
+      - venda urgent
+      - per trasllat
+      - preu negociable
+      - accepta ofertes
+      - obert a ofertes
+      - urgent sale
+      - must sell
+      - quick sale
+      - relocating
+      - motivated seller
+      - negotiable
+      - open to offers
+      - offers considered
+      - oiro
+      - ono
+      - make an offer
+      - dringend zu verkaufen
+      - notverkauf
+      - muss verkaufen
+      - motivierter verkäufer
+      - preis verhandelbar
+      - verhandlungsbasis
+      - angebote erwünscht
+      needsRenovationPercent: 1.5
+      overpricedThresholdPercent: 30
+      overpricedPercent: 2
+      seasonalMonths:
+      - 10
+      - 11
+      - 12
+      - 1
+      - 2
+      seasonalPercent: 0.5
+      maxMarginPercent: 15
+      rangeBelowPercent: 3
+      rangeAbovePercent: 4
+      sourceUrl: docs/research/mercado-negociacion-banderas.md
+    comparables:
+      radiusMetres: 1500
+      areaTolerancePercent: 35
+      minimumCount: 5
+      maximumAgeDays: 365
+    scoring:
+      weights:
+        priceVsMarket: 25
+        affordability: 20
+        negotiation: 10
+        renovation: 15
+        risk: 20
+        competition: 10
+      fullScoreDiscountPercent: 25
+      fullMarginPercent: 15
+      zeroScoreRenovationSharePercent: 40
+      competitionBySourceKind:
+        Servicer: 85
+        Bank: 85
+        Auction: 80
+        Agency: 70
+        Feed: 50
+        EmailAlert: 40
+        Aggregator: 30
+    bidding:
+      overpayTolerancePercent: 5

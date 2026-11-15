@@ -21,6 +21,17 @@
     "minimumVerdict": "Affordable",
     "includeGuarantees": true
   },
-  "sort": "PriceAsc",
-  "limit": 25
+  "sort": "ScoreDesc",
+  "limit": 25,
+  "minScore": 40,
+  "renovationLevels": [
+    "ReadyToMoveIn",
+    "Light",
+    "Medium"
+  ],
+  "excludeRedFlags": [
+    "occupied",
+    "noPossession",
+    "auctionAssignment"
+  ]
 }

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using HomeRadar.Domain.Finance;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.Listings;
 
 namespace HomeRadar.Application.Notifications;
@@ -32,7 +33,16 @@ public static class ListingMessageFormatter
         }
 
         text.Append(FormatStructure(listing)).Append('\n');
-        if (listing.Possession is not Domain.ValueObjects.PossessionStatus.Unknown and not Domain.ValueObjects.PossessionStatus.Vacant)
+        if (Intelligence(listing) is { } intelligence)
+        {
+            text.Append(intelligence).Append('\n');
+        }
+
+        if (listing.RedFlagCodes.Count > 0)
+        {
+            text.Append("🚩 ").Append(string.Join(" · ", listing.RedFlagCodes.Select(RedFlagLabel))).Append('\n');
+        }
+        else if (listing.Possession is not Domain.ValueObjects.PossessionStatus.Unknown and not Domain.ValueObjects.PossessionStatus.Vacant)
         {
             text.Append("⚠️ Posesión: ").Append(listing.Possession).Append('\n');
         }
@@ -70,6 +80,60 @@ public static class ListingMessageFormatter
         text.Append(listing.Url);
         return text.ToString();
     }
+
+    public static string? Intelligence(Listing listing)
+    {
+        var parts = new List<string>();
+        if (listing.Score is { } score)
+        {
+            parts.Add($"📊 Puntuación {score}/100");
+        }
+
+        if (listing.RenovationLevel is { } level)
+        {
+            parts.Add(level == RenovationLevel.ReadyToMoveIn
+                ? "🛠️ Para entrar a vivir"
+                : $"🛠️ Reforma {RenovationLabel(level)} ~{Euros(listing.RenovationProbableCost ?? 0m)} €");
+        }
+
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
+    public static string RedFlagLabel(string code) => code switch
+    {
+        "noPossession" => "Sin posesión",
+        "occupied" => "Ocupada",
+        "auctionAssignment" => "Cesión de remate",
+        "bareOwnership" => "Nuda propiedad",
+        "undividedShare" => "Proindiviso",
+        "protectedRuralLand" => "Rústico protegido",
+        "noHabitabilityCertificate" => "Sin cédula de habitabilidad",
+        "habitabilityCertificatePending" => "Cédula en trámite o caducada",
+        "ruralLand" => "Suelo rústico",
+        "outOfPlanning" => "Fuera de ordenación o sin licencia",
+        "protectedHousingVpo" => "VPO",
+        "investorsOnly" => "Solo inversores",
+        "cashOnly" => "Solo contado",
+        "tenantInPlace" => "Con inquilino",
+        "seizure" => "Embargo",
+        "newBuildNoCompletion" => "Obra sin final de obra",
+        "illegalTouristRental" => "Alquiler turístico",
+        "charges" => "Cargas",
+        "communityDebts" => "Deudas de comunidad",
+        "priceLimitedHousingVpl" => "VPL",
+        "buildingOver50NoIee" => "Pedir IEE",
+        "areaMismatchHigh" => "m² muy por encima del Catastro",
+        "areaMismatch" => "m² por encima del Catastro",
+        "areaMismatchLow" => "m² distintos del Catastro",
+        _ => code,
+    };
+
+    private static string RenovationLabel(RenovationLevel level) => level switch
+    {
+        RenovationLevel.Light => "ligera",
+        RenovationLevel.Medium => "media",
+        _ => "integral",
+    };
 
     public static string Verdict(VerdictSummary summary)
     {

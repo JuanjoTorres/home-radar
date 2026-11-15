@@ -72,6 +72,9 @@ public sealed record ListingAnalysisDto
 
     /// <summary>Result of the analysis.</summary>
     public required FinancialAnalysisDto Result { get; init; }
+
+    /// <summary>Renovation, red flags, Catastro, market comparison, negotiation margin, score and bidding advice. Computed live (not stored); the financial result already includes the renovation cost and the manual reference value.</summary>
+    public ListingIntelligenceDto? Intelligence { get; init; }
 }
 
 /// <summary>Result of a free simulation (no listing involved).</summary>
@@ -86,6 +89,28 @@ public sealed record SimulationResultDto
 
     /// <summary>Result of the analysis.</summary>
     public required FinancialAnalysisDto Result { get; init; }
+
+    /// <summary>Margin game: how far the renovation budget can go and how the total compares with an equivalent renovated home.</summary>
+    public required MarginsDto Margins { get; init; }
+}
+
+/// <summary>Margin game for a simulation.</summary>
+public sealed record MarginsDto
+{
+    /// <summary>Largest renovation budget (contingency added on top) that keeps the verdict Affordable at this price; null when the price alone is not affordable.</summary>
+    public MoneyDto? MaximumAffordableRenovation { get; init; }
+
+    /// <summary>Value of an equivalent renovated home: median €/m² of ReadyToMoveIn comparables × built area. Needs <c>builtSquareMetres</c> and enough comparables in HomeRadar's database.</summary>
+    public MoneyDto? RenovatedMarketValue { get; init; }
+
+    /// <summary>Largest renovation budget whose total cost (price, taxes, fees, renovation and contingency) stays within the renovated market value.</summary>
+    public MoneyDto? MaximumSensibleRenovation { get; init; }
+
+    /// <summary>Total acquisition cost versus the renovated market value, in % (positive = paying more than an equivalent renovated home is listed for).</summary>
+    public decimal? TotalCostVersusRenovatedValuePercent { get; init; }
+
+    /// <summary>Comparables used: count and scope (Municipality or Island).</summary>
+    public string? ComparablesNote { get; init; }
 }
 
 /// <summary>Complete financial analysis of a purchase.</summary>
@@ -388,6 +413,9 @@ public sealed record SimulationRequestDto
     /// <summary>Municipality; decides the island value limit. Unknown names assume Mallorca.</summary>
     /// <example>Inca</example>
     public string? Municipality { get; init; }
+
+    /// <summary>Built area in m²; enables the comparison with renovated comparables in <c>margins</c>.</summary>
+    public decimal? BuiltSquareMetres { get; init; }
 
     /// <summary>Cadastral reference value, when known; the tax base is the higher of price and this value.</summary>
     public MoneyDto? CadastralReferenceValue { get; init; }

@@ -1,7 +1,10 @@
 using HomeRadar.Application.Analysis;
 using HomeRadar.Application.Ingestion;
+using HomeRadar.Application.Intelligence;
 using HomeRadar.Application.Notifications;
 using HomeRadar.Application.Outbox;
+using HomeRadar.Application.Ports;
+using HomeRadar.Application.ReferenceData;
 using HomeRadar.Application.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,6 +29,12 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<FinanceConfigurationLoader>();
         services.AddScoped<AnalysisService>();
         services.AddScoped<AffordabilityLimitResolver>();
+        services.AddScoped<CadastreService>();
+        services.AddScoped<ComparablesService>();
+        services.AddScoped<ListingInsightService>();
+        services.AddScoped<IntelligenceRefreshService>();
+        services.AddScoped<EuriborUpdateService>();
+        services.AddScoped<IListingEnricher, CadastreEnricher>();
         return services;
     }
 }

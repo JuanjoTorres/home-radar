@@ -3,7 +3,8 @@ when `financingProfileId` is omitted). Deterministic, rule-based and reproducibl
 
 **What goes into the total cost.** Price + taxes + notary + land registry + gestoria + appraisal (only with a mortgage, the
 only mortgage cost left to the borrower by Ley 5/2019) + mortgage opening fee (if the profile has one) + guarantee fee (IBAVI
-charges 0.5 % of the guaranteed amount). Renovation is added from phase 3; until then a warning reminds it is missing.
+charges 0.5 % of the guaranteed amount) + renovation (the manual override if there is one, otherwise the probable cost of the
+rule-based estimate) + a contingency on estimated renovations (15 % in the business configuration).
 
 **Taxes.** Resale pays transfer tax (ITP) on the higher of price and cadastral reference value; new homes pay VAT (10 %, 4 %
 for protected special regime) and stamp duty (AJD). The engine reads the tax rule sets valid on the calculation date for the
@@ -31,5 +32,24 @@ combined). Grants are paid after the purchase and are budget-limited, so they ne
 **Maximum price.** `maximumPrice` is the highest price, to the cent, whose verdict stays `Affordable`; `bindingConstraints`
 are the reasons that appear one cent above it.
 
+**Intelligence.** `intelligence` adds the rule-based reading of the listing, also returned when the listing has no price:
+
+- `renovation`: level (ReadyToMoveIn, Light, Medium, Full) from description keywords in Spanish, Catalan, English and German
+  (negations such as "no necesita reforma" are ignored, "reformado en 2021" counts as recent) and from the construction year
+  (Catastro first): before 1980 full, 1980–2002 medium, 2003–2008 light. Cost range = level €/m² × built area (80 m² assumed
+  when unknown), with kitchen, bathrooms, flooring, windows… as an indicative breakdown, the rest as `otherWorks` and permits
+  plus ICIO (~3.1 %). A manual override (`setRenovationOverride`) always prevails. `visitChecklist` lists what to check.
+- `redFlags`: occupation, no possession, auction assignment, bare ownership, undivided share, missing habitability
+  certificate, rustic land, VPO, tenant in place, seizure, encumbrances… from configurable keyword rules with exclusions, plus
+  data rules: advertised area 15–30 % or more above the Catastro, rustic parcel, building of 50 years or more without IEE.
+- `market`: €/m² median and quartiles of active and recent comparables (same kind, ±35 % area) within 1.5 km, else the
+  municipality, else the island (at least 5); `deviationPercent` and estimated value.
+- `negotiation`: margin range from seller type, price drops, days on the market, relisting, urgency wording, renovation need,
+  premium over comparables and season, capped at 15 %. Not applicable with a Critical red flag.
+- `score`: 0–100 weighted average of the available components (price vs market, affordability, negotiation, renovation,
+  risk, competition of the source); weights live in the business configuration. Capped at 30 with a Critical red flag.
+- `bid`: opening offer, recommended bid (asking price minus the probable margin, rounded down to 500 EUR) and walk-away price
+  (the lower of the maximum affordable price and the estimated value plus 5 %).
+
 **Reproducibility.** The analysis is stored with its inputs (listing content hash, profile version, business configuration
-and tax rule set ids, date). The same inputs return the stored analysis (`reused: true`); any change creates a new one.
+and tax rule set ids, renovation level and cost, reference value, Euríbor month, date). The same inputs return the stored analysis (`reused: true`); any change creates a new one.

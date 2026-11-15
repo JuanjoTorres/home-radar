@@ -1,6 +1,7 @@
 using HomeRadar.Application.Search;
 using HomeRadar.Domain.Common;
 using HomeRadar.Domain.Finance;
+using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Profiles;
 using HomeRadar.Domain.ValueObjects;
 
@@ -49,8 +50,51 @@ public sealed class AffordabilityLimitResolver(AnalysisService analysis)
             limits.Add(new SubdivisionPriceLimit(subdivision.Code, subdivision.IsDefault, MunicipalityKeys(subdivision), resale.Value, newBuild.Value));
         }
 
-        return new AffordablePriceLimits(limits);
+        return new AffordablePriceLimits(limits, listing => Accepts(listing, config, criteria, financing));
     }
+
+    public static bool Accepts(Listing listing, FinanceConfiguration config, AffordabilityCriteria criteria, FinancingInputs? financing)
+    {
+        if (listing.Price is not { } price)
+        {
+            return false;
+        }
+
+        var scenario = new PurchaseScenario(
+            price,
+            listing.IsNewBuild ? PurchaseKind.NewBuild : PurchaseKind.Resale,
+            listing.PropertyType,
+            HousingRegime.FreeMarket,
+            listing.Municipality,
+            listing.ReferenceValue,
+            Money.Euros(listing.RenovationProbableCost ?? 0m),
+            !listing.RenovationManual,
+            config.On);
+        if (financing is not null)
+        {
+            var verdict = config.Analyzer.Evaluate(scenario, financing, new LoanOption(financing.Mortgage.MaxLoanToValue, null, 0m)).Verdict;
+            if (!Meets(verdict, criteria.MinimumVerdict) && criteria.IncludeGuarantees)
+            {
+                verdict = config.Analyzer.Analyze(scenario, financing, includeMaximumPrice: false).Value?.WithGuarantee?.Verdict ?? verdict;
+            }
+
+            if (!Meets(verdict, criteria.MinimumVerdict))
+            {
+                return false;
+            }
+        }
+
+        if (criteria.Budget is { } budget)
+        {
+            var inputs = financing ?? PurchaseAnalyzer.CashBuyer(Money.Euros(budget));
+            var option = financing is null ? new LoanOption(0m, null, 0m) : new LoanOption(financing.Mortgage.MaxLoanToValue, null, 0m);
+            return config.Analyzer.Evaluate(scenario, inputs, option).TotalAcquisitionCost.Amount <= budget;
+        }
+
+        return true;
+    }
+
+    private static bool Meets(AffordabilityVerdict verdict, AffordabilityVerdict minimum) => (int)verdict <= (int)minimum;
 
     public static IReadOnlyList<string> MunicipalityKeys(Subdivision subdivision) => subdivision.Municipalities
         .SelectMany(name => new[] { name.Trim().ToLowerInvariant(), TextKeys.Fold(name) })

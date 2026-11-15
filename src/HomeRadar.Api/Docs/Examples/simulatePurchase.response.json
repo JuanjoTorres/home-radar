@@ -1,17 +1,17 @@
 {
   "configuration": {
-    "businessConfigVersionId": "01a1ded1-4355-71c1-80c4-b45dbe7aebee",
-    "businessConfigValidFrom": "2026-11-01",
+    "businessConfigVersionId": "01a1e156-b25c-7c04-bb64-249883195804",
+    "businessConfigValidFrom": "2026-11-15",
     "businessConfigRevision": 1,
     "taxRuleSets": [
       {
-        "id": "01a1ded1-4347-7f12-a8d6-00f4fdaf69db",
+        "id": "01a1e156-b1f1-78e9-9fe2-6015a2667607",
         "jurisdiction": "ES",
         "validFrom": "2026-06-14",
         "revision": 1
       },
       {
-        "id": "01a1ded1-4322-7735-9374-9a15d56f3232",
+        "id": "01a1e156-b191-7bbc-a604-1e67e3c732bb",
         "jurisdiction": "ES-IB",
         "validFrom": "2026-06-14",
         "revision": 1
@@ -22,15 +22,26 @@
   "euriborPercent": 3.239,
   "result": {
     "base": {
-      "verdict": "Affordable",
-      "reasons": [],
+      "verdict": "NotAffordable",
+      "reasons": [
+        {
+          "code": "CashShortfall",
+          "blocking": true,
+          "message": "Missing 7,565.92 EUR of savings for the deposit, taxes and costs",
+          "amount": {
+            "amount": 7565.92,
+            "currency": "EUR"
+          },
+          "ratio": null
+        }
+      ],
       "purchaseKind": "Resale",
       "price": {
-        "amount": 245000,
+        "amount": 185000,
         "currency": "EUR"
       },
       "taxableValue": {
-        "amount": 245000,
+        "amount": 185000,
         "currency": "EUR"
       },
       "location": {
@@ -42,7 +53,7 @@
       },
       "taxes": {
         "total": {
-          "amount": 4900.0,
+          "amount": 3700.0,
           "currency": "EUR"
         },
         "lines": [
@@ -50,11 +61,11 @@
             "tax": "TransferTax",
             "ruleId": "itp_under36_first_home_2",
             "taxBase": {
-              "amount": 245000,
+              "amount": 185000,
               "currency": "EUR"
             },
             "quota": {
-              "amount": 4900.0,
+              "amount": 3700.0,
               "currency": "EUR"
             },
             "effectiveRate": 0.02,
@@ -68,26 +79,6 @@
           }
         ],
         "reliefs": [
-          {
-            "ruleId": "itp_under36_first_home_2",
-            "tax": "TransferTax",
-            "outcome": "Met",
-            "applied": true,
-            "checks": [
-              {
-                "condition": "ageMax",
-                "outcome": "Met",
-                "detail": "age 33, required at most 35"
-              },
-              {
-                "condition": "firstHome",
-                "outcome": "Met",
-                "detail": "first home"
-              }
-            ],
-            "potentialSaving": null,
-            "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
-          },
           {
             "ruleId": "itp_primary_residence_4",
             "tax": "TransferTax",
@@ -103,10 +94,170 @@
                 "condition": "primaryResidence",
                 "outcome": "Met",
                 "detail": "primary residence"
+              },
+              {
+                "condition": "priceMax",
+                "outcome": "Met",
+                "detail": "taxable value 185,000.00 EUR, limit 331,859.70 EUR"
               }
             ],
             "potentialSaving": null,
             "description": "ITP 4 % for a primary residence on the first 270,151.20 EUR and 8 % on the excess, value up to the island limit (art. 10 c) TR and DA 5.ª)"
+          },
+          {
+            "ruleId": "itp_under36_first_home_2",
+            "tax": "TransferTax",
+            "outcome": "Met",
+            "applied": true,
+            "checks": [
+              {
+                "condition": "ageMax",
+                "outcome": "Met",
+                "detail": "age 33, required at most 35"
+              },
+              {
+                "condition": "firstHome",
+                "outcome": "Met",
+                "detail": "first home"
+              },
+              {
+                "condition": "noOtherHome",
+                "outcome": "Met",
+                "detail": "owns no other home"
+              },
+              {
+                "condition": "primaryResidence",
+                "outcome": "Met",
+                "detail": "primary residence"
+              },
+              {
+                "condition": "priceMax",
+                "outcome": "Met",
+                "detail": "taxable value 185,000.00 EUR, limit 331,859.70 EUR"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
+          },
+          {
+            "ruleId": "itp_disability_relatives_2",
+            "tax": "TransferTax",
+            "outcome": "NotMet",
+            "applied": false,
+            "checks": [
+              {
+                "condition": "noOtherHome",
+                "outcome": "Met",
+                "detail": "owns no other home"
+              },
+              {
+                "condition": "primaryResidence",
+                "outcome": "Met",
+                "detail": "primary residence"
+              },
+              {
+                "condition": "disabilityMinimumForRelatives",
+                "outcome": "NotMet",
+                "detail": "IRPF disability minimum for ascendants or descendants"
+              },
+              {
+                "condition": "priceMax",
+                "outcome": "Met",
+                "detail": "taxable value 185,000.00 EUR, limit 331,859.70 EUR"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "ITP 2 % when the buyer applies the IRPF disability minimum for ascendants or descendants (art. 10 d) 2.º TR)"
+          },
+          {
+            "ruleId": "itp_large_or_single_parent_family_2",
+            "tax": "TransferTax",
+            "outcome": "NotMet",
+            "applied": false,
+            "checks": [
+              {
+                "condition": "noOtherHome",
+                "outcome": "Met",
+                "detail": "owns no other home"
+              },
+              {
+                "condition": "primaryResidence",
+                "outcome": "Met",
+                "detail": "primary residence"
+              },
+              {
+                "condition": "anyOf",
+                "outcome": "NotMet",
+                "detail": "family type required: Large [NotMet], taxable value 185,000.00 EUR, limit 381,638.66 EUR [Met] | family type required: SingleParent [NotMet], taxable value 185,000.00 EUR, limit 331,859.70 EUR [Met]"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "ITP 2 % for large families (value up to the island limit + 15 %) and single-parent families (art. 10 d) 3.º TR, Ley 4/2026)"
+          },
+          {
+            "ruleId": "itp_under30_or_disability33_bonus_100",
+            "tax": "TransferTax",
+            "outcome": "NotMet",
+            "applied": false,
+            "checks": [
+              {
+                "condition": "firstHome",
+                "outcome": "Met",
+                "detail": "first home"
+              },
+              {
+                "condition": "noOtherHome",
+                "outcome": "Met",
+                "detail": "owns no other home"
+              },
+              {
+                "condition": "primaryResidence",
+                "outcome": "Met",
+                "detail": "primary residence"
+              },
+              {
+                "condition": "balearicResidencyYearsMin",
+                "outcome": "Met",
+                "detail": "8 years resident in the Balearic Islands, required 3"
+              },
+              {
+                "condition": "taxableIncomeMax",
+                "outcome": "Unknown",
+                "detail": "IRPF taxable base not provided"
+              },
+              {
+                "condition": "priceMax",
+                "outcome": "Met",
+                "detail": "taxable value 185,000.00 EUR, limit 331,859.70 EUR"
+              },
+              {
+                "condition": "mortgageMinLoanToValue",
+                "outcome": "Met",
+                "detail": "loan 80 % of the price (appraisal assumed equal to price), required 60 %"
+              },
+              {
+                "condition": "anyOf",
+                "outcome": "NotMet",
+                "detail": "age 33, required at most 29 [NotMet] | disability 0 %, required 33 % [NotMet]"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "100 % bonus on the ITP of the first 270,151.20 EUR for buyers under 30 or with disability ≥ 33 % (art. 14 quater TR)"
+          },
+          {
+            "ruleId": "itp_price_limited_bonus_50",
+            "tax": "TransferTax",
+            "outcome": "NotMet",
+            "applied": false,
+            "checks": [
+              {
+                "condition": "housingRegimes",
+                "outcome": "NotMet",
+                "detail": "housing regime FreeMarket, required PriceLimited"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "50 % bonus on the ITP for price-limited housing (VPL, art. 14 septies TR)"
           }
         ]
       },
@@ -115,7 +266,7 @@
           "category": "Notary",
           "code": "notary_purchase_deed",
           "amount": {
-            "amount": 587.89,
+            "amount": 553.4,
             "currency": "EUR"
           },
           "explanation": "Notary fee for the purchase deed: RD 1426/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus ~150 EUR of copies and folios. Copies and folios are an estimate; the 10 % rebate cited by secondary sources (RDL 6/2000) is not in the consolidated tariff and is not applied",
@@ -126,7 +277,7 @@
           "category": "LandRegistry",
           "code": "registry_purchase",
           "amount": {
-            "amount": 233.21,
+            "amount": 212.52,
             "currency": "EUR"
           },
           "explanation": "Land registry fee for the purchase: RD 1427/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus the nota simple. The 2,181.67 EUR cap is formulated for the global tariff and may not apply per property; it only binds above ~7 M EUR",
@@ -159,7 +310,7 @@
           "category": "Renovation",
           "code": "renovation",
           "amount": {
-            "amount": 12000,
+            "amount": 35000,
             "currency": "EUR"
           },
           "explanation": "Renovation budget provided",
@@ -170,26 +321,26 @@
           "category": "RenovationContingency",
           "code": "renovationContingency",
           "amount": {
-            "amount": 1200.0,
+            "amount": 5250.0,
             "currency": "EUR"
           },
-          "explanation": "Contingency 10 % of the renovation",
+          "explanation": "Contingency 15 % of the renovation",
           "estimated": true,
           "sourceUrl": null
         }
       ],
       "totalAcquisitionCost": {
-        "amount": 264771.1,
+        "amount": 230565.92,
         "currency": "EUR"
       },
       "loan": {
-        "amount": 196000.0,
+        "amount": 148000.0,
         "currency": "EUR"
       },
       "loanToValue": 0.8,
       "guaranteeProgramId": null,
       "cashNeeded": {
-        "amount": 68771.1,
+        "amount": 82565.92,
         "currency": "EUR"
       },
       "savings": {
@@ -197,7 +348,7 @@
         "currency": "EUR"
       },
       "remainingSavings": {
-        "amount": 6228.9,
+        "amount": -7565.92,
         "currency": "EUR"
       },
       "payments": [
@@ -210,7 +361,7 @@
               "toMonth": 120,
               "annualRatePercent": 2.25,
               "monthlyPayment": {
-                "amount": 749.2,
+                "amount": 565.72,
                 "currency": "EUR"
               }
             },
@@ -219,17 +370,17 @@
               "toMonth": 360,
               "annualRatePercent": 3.889,
               "monthlyPayment": {
-                "amount": 868.34,
+                "amount": 655.68,
                 "currency": "EUR"
               }
             }
           ],
           "maxMonthlyPayment": {
-            "amount": 868.34,
+            "amount": 655.68,
             "currency": "EUR"
           },
           "totalInterest": {
-            "amount": 102305.04,
+            "amount": 77250.75,
             "currency": "EUR"
           }
         },
@@ -242,7 +393,7 @@
               "toMonth": 120,
               "annualRatePercent": 2.25,
               "monthlyPayment": {
-                "amount": 749.2,
+                "amount": 565.72,
                 "currency": "EUR"
               }
             },
@@ -251,17 +402,17 @@
               "toMonth": 360,
               "annualRatePercent": 4.889,
               "monthlyPayment": {
-                "amount": 946.02,
+                "amount": 714.34,
                 "currency": "EUR"
               }
             }
           ],
           "maxMonthlyPayment": {
-            "amount": 946.02,
+            "amount": 714.34,
             "currency": "EUR"
           },
           "totalInterest": {
-            "amount": 120949.52,
+            "amount": 91329.23,
             "currency": "EUR"
           }
         },
@@ -274,7 +425,7 @@
               "toMonth": 120,
               "annualRatePercent": 2.25,
               "monthlyPayment": {
-                "amount": 749.2,
+                "amount": 565.72,
                 "currency": "EUR"
               }
             },
@@ -283,24 +434,24 @@
               "toMonth": 360,
               "annualRatePercent": 5.889,
               "monthlyPayment": {
-                "amount": 1027.34,
+                "amount": 775.75,
                 "currency": "EUR"
               }
             }
           ],
           "maxMonthlyPayment": {
-            "amount": 1027.34,
+            "amount": 775.75,
             "currency": "EUR"
           },
           "totalInterest": {
-            "amount": 140465.93,
+            "amount": 106066.11,
             "currency": "EUR"
           }
         }
       ],
-      "debtToIncome": 0.2714,
+      "debtToIncome": 0.2049,
       "stressScenario": "plus2",
-      "stressDebtToIncome": 0.321,
+      "stressDebtToIncome": 0.2424,
       "ageAtLoanMaturity": 63,
       "warnings": [
         "Cadastral reference value unknown; the tax base uses the price (the real base is the higher of both)",
@@ -308,23 +459,15 @@
       ]
     },
     "withGuarantee": {
-      "verdict": "Borderline",
-      "reasons": [
-        {
-          "code": "StressScenarioAboveLimit",
-          "blocking": false,
-          "message": "Under the plus2 Euríbor scenario the debt-to-income rises to 40.13 %",
-          "amount": null,
-          "ratio": 0.4013
-        }
-      ],
+      "verdict": "Affordable",
+      "reasons": [],
       "purchaseKind": "Resale",
       "price": {
-        "amount": 245000,
+        "amount": 185000,
         "currency": "EUR"
       },
       "taxableValue": {
-        "amount": 245000,
+        "amount": 185000,
         "currency": "EUR"
       },
       "location": {
@@ -336,7 +479,7 @@
       },
       "taxes": {
         "total": {
-          "amount": 4900.0,
+          "amount": 3700.0,
           "currency": "EUR"
         },
         "lines": [
@@ -344,11 +487,11 @@
             "tax": "TransferTax",
             "ruleId": "itp_under36_first_home_2",
             "taxBase": {
-              "amount": 245000,
+              "amount": 185000,
               "currency": "EUR"
             },
             "quota": {
-              "amount": 4900.0,
+              "amount": 3700.0,
               "currency": "EUR"
             },
             "effectiveRate": 0.02,
@@ -362,26 +505,6 @@
           }
         ],
         "reliefs": [
-          {
-            "ruleId": "itp_under36_first_home_2",
-            "tax": "TransferTax",
-            "outcome": "Met",
-            "applied": true,
-            "checks": [
-              {
-                "condition": "ageMax",
-                "outcome": "Met",
-                "detail": "age 33, required at most 35"
-              },
-              {
-                "condition": "firstHome",
-                "outcome": "Met",
-                "detail": "first home"
-              }
-            ],
-            "potentialSaving": null,
-            "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
-          },
           {
             "ruleId": "itp_primary_residence_4",
             "tax": "TransferTax",
@@ -397,10 +520,170 @@
                 "condition": "primaryResidence",
                 "outcome": "Met",
                 "detail": "primary residence"
+              },
+              {
+                "condition": "priceMax",
+                "outcome": "Met",
+                "detail": "taxable value 185,000.00 EUR, limit 331,859.70 EUR"
               }
             ],
             "potentialSaving": null,
             "description": "ITP 4 % for a primary residence on the first 270,151.20 EUR and 8 % on the excess, value up to the island limit (art. 10 c) TR and DA 5.ª)"
+          },
+          {
+            "ruleId": "itp_under36_first_home_2",
+            "tax": "TransferTax",
+            "outcome": "Met",
+            "applied": true,
+            "checks": [
+              {
+                "condition": "ageMax",
+                "outcome": "Met",
+                "detail": "age 33, required at most 35"
+              },
+              {
+                "condition": "firstHome",
+                "outcome": "Met",
+                "detail": "first home"
+              },
+              {
+                "condition": "noOtherHome",
+                "outcome": "Met",
+                "detail": "owns no other home"
+              },
+              {
+                "condition": "primaryResidence",
+                "outcome": "Met",
+                "detail": "primary residence"
+              },
+              {
+                "condition": "priceMax",
+                "outcome": "Met",
+                "detail": "taxable value 185,000.00 EUR, limit 331,859.70 EUR"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "ITP 2 % for buyers under 36 buying their first home as primary residence, on the first 270,151.20 EUR and 8 % on the excess (art. 10 d) 1.º TR)"
+          },
+          {
+            "ruleId": "itp_disability_relatives_2",
+            "tax": "TransferTax",
+            "outcome": "NotMet",
+            "applied": false,
+            "checks": [
+              {
+                "condition": "noOtherHome",
+                "outcome": "Met",
+                "detail": "owns no other home"
+              },
+              {
+                "condition": "primaryResidence",
+                "outcome": "Met",
+                "detail": "primary residence"
+              },
+              {
+                "condition": "disabilityMinimumForRelatives",
+                "outcome": "NotMet",
+                "detail": "IRPF disability minimum for ascendants or descendants"
+              },
+              {
+                "condition": "priceMax",
+                "outcome": "Met",
+                "detail": "taxable value 185,000.00 EUR, limit 331,859.70 EUR"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "ITP 2 % when the buyer applies the IRPF disability minimum for ascendants or descendants (art. 10 d) 2.º TR)"
+          },
+          {
+            "ruleId": "itp_large_or_single_parent_family_2",
+            "tax": "TransferTax",
+            "outcome": "NotMet",
+            "applied": false,
+            "checks": [
+              {
+                "condition": "noOtherHome",
+                "outcome": "Met",
+                "detail": "owns no other home"
+              },
+              {
+                "condition": "primaryResidence",
+                "outcome": "Met",
+                "detail": "primary residence"
+              },
+              {
+                "condition": "anyOf",
+                "outcome": "NotMet",
+                "detail": "family type required: Large [NotMet], taxable value 185,000.00 EUR, limit 381,638.66 EUR [Met] | family type required: SingleParent [NotMet], taxable value 185,000.00 EUR, limit 331,859.70 EUR [Met]"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "ITP 2 % for large families (value up to the island limit + 15 %) and single-parent families (art. 10 d) 3.º TR, Ley 4/2026)"
+          },
+          {
+            "ruleId": "itp_under30_or_disability33_bonus_100",
+            "tax": "TransferTax",
+            "outcome": "NotMet",
+            "applied": false,
+            "checks": [
+              {
+                "condition": "firstHome",
+                "outcome": "Met",
+                "detail": "first home"
+              },
+              {
+                "condition": "noOtherHome",
+                "outcome": "Met",
+                "detail": "owns no other home"
+              },
+              {
+                "condition": "primaryResidence",
+                "outcome": "Met",
+                "detail": "primary residence"
+              },
+              {
+                "condition": "balearicResidencyYearsMin",
+                "outcome": "Met",
+                "detail": "8 years resident in the Balearic Islands, required 3"
+              },
+              {
+                "condition": "taxableIncomeMax",
+                "outcome": "Unknown",
+                "detail": "IRPF taxable base not provided"
+              },
+              {
+                "condition": "priceMax",
+                "outcome": "Met",
+                "detail": "taxable value 185,000.00 EUR, limit 331,859.70 EUR"
+              },
+              {
+                "condition": "mortgageMinLoanToValue",
+                "outcome": "Met",
+                "detail": "loan 100 % of the price (appraisal assumed equal to price), required 60 %"
+              },
+              {
+                "condition": "anyOf",
+                "outcome": "NotMet",
+                "detail": "age 33, required at most 29 [NotMet] | disability 0 %, required 33 % [NotMet]"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "100 % bonus on the ITP of the first 270,151.20 EUR for buyers under 30 or with disability ≥ 33 % (art. 14 quater TR)"
+          },
+          {
+            "ruleId": "itp_price_limited_bonus_50",
+            "tax": "TransferTax",
+            "outcome": "NotMet",
+            "applied": false,
+            "checks": [
+              {
+                "condition": "housingRegimes",
+                "outcome": "NotMet",
+                "detail": "housing regime FreeMarket, required PriceLimited"
+              }
+            ],
+            "potentialSaving": null,
+            "description": "50 % bonus on the ITP for price-limited housing (VPL, art. 14 septies TR)"
           }
         ]
       },
@@ -409,7 +692,7 @@
           "category": "Notary",
           "code": "notary_purchase_deed",
           "amount": {
-            "amount": 587.89,
+            "amount": 553.4,
             "currency": "EUR"
           },
           "explanation": "Notary fee for the purchase deed: RD 1426/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus ~150 EUR of copies and folios. Copies and folios are an estimate; the 10 % rebate cited by secondary sources (RDL 6/2000) is not in the consolidated tariff and is not applied",
@@ -420,7 +703,7 @@
           "category": "LandRegistry",
           "code": "registry_purchase",
           "amount": {
-            "amount": 233.21,
+            "amount": 212.52,
             "currency": "EUR"
           },
           "explanation": "Land registry fee for the purchase: RD 1427/1989 tariff (number 2), 5 % general rebate, VAT 21 %, plus the nota simple. The 2,181.67 EUR cap is formulated for the global tariff and may not apply per property; it only binds above ~7 M EUR",
@@ -453,7 +736,7 @@
           "category": "Renovation",
           "code": "renovation",
           "amount": {
-            "amount": 12000,
+            "amount": 35000,
             "currency": "EUR"
           },
           "explanation": "Renovation budget provided",
@@ -464,26 +747,26 @@
           "category": "RenovationContingency",
           "code": "renovationContingency",
           "amount": {
-            "amount": 1200.0,
+            "amount": 5250.0,
             "currency": "EUR"
           },
-          "explanation": "Contingency 10 % of the renovation",
+          "explanation": "Contingency 15 % of the renovation",
           "estimated": true,
           "sourceUrl": null
         }
       ],
       "totalAcquisitionCost": {
-        "amount": 264771.1,
+        "amount": 230565.92,
         "currency": "EUR"
       },
       "loan": {
-        "amount": 245000.0,
+        "amount": 185000.0,
         "currency": "EUR"
       },
       "loanToValue": 1.0,
       "guaranteeProgramId": "ico_state_guarantee",
       "cashNeeded": {
-        "amount": 19771.1,
+        "amount": 45565.92,
         "currency": "EUR"
       },
       "savings": {
@@ -491,7 +774,7 @@
         "currency": "EUR"
       },
       "remainingSavings": {
-        "amount": 55228.9,
+        "amount": 29434.08,
         "currency": "EUR"
       },
       "payments": [
@@ -504,7 +787,7 @@
               "toMonth": 120,
               "annualRatePercent": 2.25,
               "monthlyPayment": {
-                "amount": 936.5,
+                "amount": 707.16,
                 "currency": "EUR"
               }
             },
@@ -513,17 +796,17 @@
               "toMonth": 360,
               "annualRatePercent": 3.889,
               "monthlyPayment": {
-                "amount": 1085.42,
+                "amount": 819.6,
                 "currency": "EUR"
               }
             }
           ],
           "maxMonthlyPayment": {
-            "amount": 1085.42,
+            "amount": 819.6,
             "currency": "EUR"
           },
           "totalInterest": {
-            "amount": 127881.31,
+            "amount": 96563.44,
             "currency": "EUR"
           }
         },
@@ -536,7 +819,7 @@
               "toMonth": 120,
               "annualRatePercent": 2.25,
               "monthlyPayment": {
-                "amount": 936.5,
+                "amount": 707.16,
                 "currency": "EUR"
               }
             },
@@ -545,17 +828,17 @@
               "toMonth": 360,
               "annualRatePercent": 4.889,
               "monthlyPayment": {
-                "amount": 1182.53,
+                "amount": 892.93,
                 "currency": "EUR"
               }
             }
           ],
           "maxMonthlyPayment": {
-            "amount": 1182.53,
+            "amount": 892.93,
             "currency": "EUR"
           },
           "totalInterest": {
-            "amount": 151186.9,
+            "amount": 114161.54,
             "currency": "EUR"
           }
         },
@@ -568,7 +851,7 @@
               "toMonth": 120,
               "annualRatePercent": 2.25,
               "monthlyPayment": {
-                "amount": 936.5,
+                "amount": 707.16,
                 "currency": "EUR"
               }
             },
@@ -577,24 +860,24 @@
               "toMonth": 360,
               "annualRatePercent": 5.889,
               "monthlyPayment": {
-                "amount": 1284.18,
+                "amount": 969.68,
                 "currency": "EUR"
               }
             }
           ],
           "maxMonthlyPayment": {
-            "amount": 1284.18,
+            "amount": 969.68,
             "currency": "EUR"
           },
           "totalInterest": {
-            "amount": 175582.42,
+            "amount": 132582.64,
             "currency": "EUR"
           }
         }
       ],
-      "debtToIncome": 0.3392,
+      "debtToIncome": 0.2561,
       "stressScenario": "plus2",
-      "stressDebtToIncome": 0.4013,
+      "stressDebtToIncome": 0.303,
       "ageAtLoanMaturity": 63,
       "warnings": [
         "Cadastral reference value unknown; the tax base uses the price (the real base is the higher of both)",
@@ -617,6 +900,26 @@
             "condition": "primaryResidence",
             "outcome": "Met",
             "detail": "primary residence"
+          },
+          {
+            "condition": "spanishResidencyYearsMin",
+            "outcome": "Met",
+            "detail": "at least 8 years resident in Spain (Balearic residence), required 2"
+          },
+          {
+            "condition": "householdIncomeMaxPerBuyer",
+            "outcome": "Met",
+            "detail": "gross household income 46,000.00 EUR, limit 63,000.00 EUR (63,000.00 EUR per buyer)"
+          },
+          {
+            "condition": "netWorthMax",
+            "outcome": "Met",
+            "detail": "net worth 70,000.00 EUR, limit 150,000.00 EUR"
+          },
+          {
+            "condition": "anyOf",
+            "outcome": "Met",
+            "detail": "age 33, required at most 35 [Met] | no dependent children [NotMet]"
           }
         ],
         "maxLoanToValue": 1.0,
@@ -641,6 +944,26 @@
             "condition": "primaryResidence",
             "outcome": "Met",
             "detail": "primary residence"
+          },
+          {
+            "condition": "balearicResidencyYearsMin",
+            "outcome": "Met",
+            "detail": "8 years resident in the Balearic Islands, required 5"
+          },
+          {
+            "condition": "priceMax",
+            "outcome": "Met",
+            "detail": "price 185,000.00 EUR, limit 382,744.84 EUR"
+          },
+          {
+            "condition": "bankLoanToValueMin",
+            "outcome": "Met",
+            "detail": "bank finances 80 %, required 80 %"
+          },
+          {
+            "condition": "anyOf",
+            "outcome": "Met",
+            "detail": "1 buyer(s), required at most 1 [Met], gross household income 46,000.00 EUR, limit 60,666.65 EUR [Met] | 1 buyer(s), required at least 2 [NotMet], gross household income 46,000.00 EUR, limit 68,250.00 EUR [Met]"
           }
         ],
         "maxLoanToValue": 1.0,
@@ -649,11 +972,77 @@
         "verified": true,
         "sourceUrl": "https://www.caib.es/sites/nova_hipoteca_jove/es/requisitos/",
         "note": "Guarantee of 20 % of the price (all buyers under 40 or family/disability) or 15 %; the bank must lend at least 80 %. Subject to the programme budget"
+      },
+      {
+        "programId": "govern_direct_grant_10000",
+        "name": "Ayuda directa del Govern 10.000 €",
+        "kind": "DirectGrant",
+        "outcome": "Met",
+        "checks": [
+          {
+            "condition": "ageMax",
+            "outcome": "Met",
+            "detail": "age 33, required at most 40"
+          },
+          {
+            "condition": "noOtherHome",
+            "outcome": "Met",
+            "detail": "owns no other home"
+          },
+          {
+            "condition": "primaryResidence",
+            "outcome": "Met",
+            "detail": "primary residence"
+          },
+          {
+            "condition": "balearicResidencyYearsMin",
+            "outcome": "Met",
+            "detail": "8 years resident in the Balearic Islands, required 5"
+          },
+          {
+            "condition": "priceMax",
+            "outcome": "Met",
+            "detail": "price 185,000.00 EUR, limit 382,000.00 EUR"
+          },
+          {
+            "condition": "anyOf",
+            "outcome": "Met",
+            "detail": "gross household income 46,000.00 EUR, limit 54,600.00 EUR [Met] | family type required: Large [NotMet], gross household income 46,000.00 EUR, limit 58,800.00 EUR [Met] | disability 0 %, required 33 % [NotMet], gross household income 46,000.00 EUR, limit 58,800.00 EUR [Met]"
+          }
+        ],
+        "maxLoanToValue": null,
+        "grantAmount": {
+          "amount": 10000,
+          "currency": "EUR"
+        },
+        "budgetLimited": true,
+        "verified": true,
+        "sourceUrl": "https://www.caib.es/seucaib/ca/arxiuServlet?id=6528582",
+        "note": "Paid after the purchase and first come, first served (6 M EUR); never counted as cash at signing. Income limit 6.5 × IPREM; 7 × applied conservatively to the special groups"
       }
     ],
     "maximumPrice": {
       "price": {
-        "amount": 267136.84,
+        "amount": 150752.62,
+        "currency": "EUR"
+      },
+      "target": "Affordable",
+      "bindingConstraints": [
+        {
+          "code": "CashShortfall",
+          "blocking": false,
+          "message": "Missing 0.01 EUR of savings for the deposit, taxes and costs",
+          "amount": {
+            "amount": 0.01,
+            "currency": "EUR"
+          },
+          "ratio": null
+        }
+      ]
+    },
+    "maximumPriceWithGuarantee": {
+      "price": {
+        "amount": 213709.47,
         "currency": "EUR"
       },
       "target": "Affordable",
@@ -666,7 +1055,22 @@
           "ratio": 0.3501
         }
       ]
+    }
+  },
+  "margins": {
+    "maximumAffordableRenovation": {
+      "amount": 28420,
+      "currency": "EUR"
     },
-    "maximumPriceWithGuarantee": null
+    "renovatedMarketValue": {
+      "amount": 206715.72,
+      "currency": "EUR"
+    },
+    "maximumSensibleRenovation": {
+      "amount": 14260,
+      "currency": "EUR"
+    },
+    "totalCostVersusRenovatedValuePercent": 11.5,
+    "comparablesNote": "3 renovated comparables (Municipality)"
   }
 }

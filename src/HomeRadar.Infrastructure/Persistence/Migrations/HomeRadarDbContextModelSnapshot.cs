@@ -116,6 +116,40 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                     b.ToTable("listing_analyses", (string)null);
                 });
 
+            modelBuilder.Entity("HomeRadar.Domain.Finance.ReferenceRate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Percent")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("numeric(8,4)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code", "Month")
+                        .IsUnique();
+
+                    b.ToTable("reference_rates", (string)null);
+                });
+
             modelBuilder.Entity("HomeRadar.Domain.Finance.TaxRuleSet", b =>
                 {
                     b.Property<Guid>("Id")
@@ -154,6 +188,86 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("tax_rule_sets", (string)null);
+                });
+
+            modelBuilder.Entity("HomeRadar.Domain.Intelligence.CadastralParcel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset>("FetchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool?>("IsRustic")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ParcelReference")
+                        .IsRequired()
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Units")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParcelReference")
+                        .IsUnique();
+
+                    b.ToTable("cadastral_parcels", (string)null);
+                });
+
+            modelBuilder.Entity("HomeRadar.Domain.Intelligence.ListingRenovationOverride", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Items")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Level")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("ListingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<decimal?>("TotalBudget")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListingId")
+                        .IsUnique();
+
+                    b.ToTable("renovation_overrides", (string)null);
                 });
 
             modelBuilder.Entity("HomeRadar.Domain.Listings.Agency", b =>
@@ -246,9 +360,32 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)");
 
+                    b.Property<decimal?>("CadastralBuiltSquareMetres")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
+
+                    b.Property<string>("CadastralMatch")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("CadastralParcelReference")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)");
+
                     b.Property<string>("CadastralReference")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<bool?>("CadastralRustic")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("CadastralUse")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<int?>("CadastralYearBuilt")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ContentHash")
                         .IsRequired()
@@ -290,6 +427,9 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("numeric(14,2)");
 
+                    b.Property<DateTimeOffset?>("IntelligenceUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("IsNewBuild")
                         .HasColumnType("boolean");
 
@@ -329,7 +469,32 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("PublishedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.PrimitiveCollection<string[]>("RedFlagCodes")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<decimal?>("ReferenceValueAmount")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
+                    b.Property<DateOnly?>("ReferenceValueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RenovationLevel")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<bool>("RenovationManual")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal?>("RenovationProbableCost")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)");
+
                     b.Property<int?>("Rooms")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Score")
                         .HasColumnType("integer");
 
                     b.Property<string>("SellerType")
@@ -388,6 +553,8 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("LocationUtm"), "gist");
 
                     b.HasIndex("Municipality");
+
+                    b.HasIndex("Score");
 
                     b.HasIndex("Status");
 
@@ -850,6 +1017,15 @@ namespace HomeRadar.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("HomeRadar.Domain.Listings.Listing", null)
+                        .WithMany()
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HomeRadar.Domain.Intelligence.ListingRenovationOverride", b =>
+                {
                     b.HasOne("HomeRadar.Domain.Listings.Listing", null)
                         .WithMany()
                         .HasForeignKey("ListingId")

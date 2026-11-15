@@ -94,11 +94,8 @@ public static class ListingEndpoints
             limits = resolved.Value;
         }
 
-        var query = db.Listings.AsNoTracking().Where(ListingFilterSpecification.Build(filter, now, limits));
-        var cursorValue = Cursor.Decode(request.Cursor);
-        query = ApplyOrderAndCursor(query, request.Sort, cursorValue);
-
-        var rows = await query.Take(request.Limit + 1).ToListAsync(cancellationToken);
+        var filtered = db.Listings.AsNoTracking().Where(ListingFilterSpecification.Build(filter, now, limits));
+        var rows = await PageAsync(filtered, request, limits?.Accepts, cancellationToken);
         var hasMore = rows.Count > request.Limit;
         var page = rows.Take(request.Limit).ToList();
         var next = hasMore && page.Count > 0 ? CursorFor(page[^1], request.Sort).Encode() : null;
@@ -156,6 +153,12 @@ public static class ListingEndpoints
             errors["newWithinHours"] = ["Must be between 1 and 720."];
         }
 
+        TryParseAll<Domain.Intelligence.RenovationLevel>(request.RenovationLevels, "renovationLevels", errors);
+        if (request.MinScore is < 0 or > 100)
+        {
+            errors["minScore"] = ["Must be between 0 and 100."];
+        }
+
         if (request.Affordability is { } affordability)
         {
             if (affordability.FinancingProfileId is null && affordability.Budget is null)
@@ -201,6 +204,32 @@ public static class ListingEndpoints
         }
     }
 
+    private static async Task<List<Listing>> PageAsync(IQueryable<Listing> filtered, ListingSearchRequestDto request, Func<Listing, bool>? accepts, CancellationToken cancellationToken)
+    {
+        if (accepts is null)
+        {
+            return await ApplyOrderAndCursor(filtered, request.Sort, Cursor.Decode(request.Cursor)).Take(request.Limit + 1).ToListAsync(cancellationToken);
+        }
+
+        const int MaximumRounds = 10;
+        var batchSize = Math.Max(50, request.Limit * 4);
+        var accepted = new List<Listing>();
+        var cursor = Cursor.Decode(request.Cursor);
+        for (var round = 0; round < MaximumRounds && accepted.Count <= request.Limit; round++)
+        {
+            var batch = await ApplyOrderAndCursor(filtered, request.Sort, cursor).Take(batchSize).ToListAsync(cancellationToken);
+            accepted.AddRange(batch.Where(accepts));
+            if (batch.Count < batchSize)
+            {
+                break;
+            }
+
+            cursor = CursorFor(batch[^1], request.Sort);
+        }
+
+        return accepted.Take(request.Limit + 1).ToList();
+    }
+
     private static IQueryable<Listing> ApplyOrderAndCursor(IQueryable<Listing> query, ListingSortDto sort, Cursor? cursor)
     {
         switch (sort)
@@ -227,6 +256,14 @@ public static class ListingEndpoints
                 }
 
                 return query.OrderBy(ppm2).ThenBy(l => l.Id);
+            case ListingSortDto.ScoreDesc:
+                if (cursor?.AsDecimal() is { } scoreBefore)
+                {
+                    var score = (int)scoreBefore;
+                    query = query.Where(l => (l.Score ?? -1) < score || ((l.Score ?? -1) == score && l.Id.CompareTo(cursor.Id) < 0));
+                }
+
+                return query.OrderByDescending(l => l.Score ?? -1).ThenByDescending(l => l.Id);
             case ListingSortDto.PriceDropDesc:
                 if (cursor?.AsDecimal() is { } dropBefore)
                 {
@@ -249,6 +286,7 @@ public static class ListingEndpoints
         ListingSortDto.PriceAsc or ListingSortDto.PriceDesc => new Cursor(Cursor.Format(last.PriceAmount ?? 0), last.Id),
         ListingSortDto.PricePerM2 => new Cursor(Cursor.Format(last.PricePerSquareMetre ?? 0), last.Id),
         ListingSortDto.PriceDropDesc => new Cursor(Cursor.Format(last.PriceDropCount), last.Id),
+        ListingSortDto.ScoreDesc => new Cursor(Cursor.Format(last.Score ?? -1), last.Id),
         _ => new Cursor(Cursor.Format(last.FirstSeenAt), last.Id),
     };
 }

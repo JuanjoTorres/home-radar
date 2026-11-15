@@ -46,7 +46,7 @@ public sealed partial class MatchStage(IHomeRadarDbContext db, AffordabilityLimi
             }
 
             var predicate = ListingFilterSpecification.Build(profile.Filter, context.Now, limits).Compile();
-            if (predicate(listing))
+            if (predicate(listing) && (limits is null || limits.Accepts(listing)))
             {
                 context.MatchedSearchProfileIds.Add(profile.Id);
             }

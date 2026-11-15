@@ -75,8 +75,8 @@ public sealed class AffordabilityTests
         var analysis = Evaluate(Scenario(250_000, renovation: 20_000m));
 
         analysis.Costs.Single(cost => cost.Category == CostCategory.Renovation).Amount.Amount.ShouldBe(20_000m);
-        analysis.Costs.Single(cost => cost.Category == CostCategory.RenovationContingency).Amount.Amount.ShouldBe(2_000m);
-        analysis.TotalAcquisitionCost.Amount.ShouldBe(278_675.69m);
+        analysis.Costs.Single(cost => cost.Category == CostCategory.RenovationContingency).Amount.Amount.ShouldBe(3_000m);
+        analysis.TotalAcquisitionCost.Amount.ShouldBe(279_675.69m);
     }
 
     [Fact]

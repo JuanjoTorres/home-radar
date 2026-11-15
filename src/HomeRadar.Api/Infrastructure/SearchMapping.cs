@@ -1,5 +1,6 @@
 using HomeRadar.Api.Contracts;
 using HomeRadar.Domain.Finance;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Profiles;
 using HomeRadar.Domain.ValueObjects;
@@ -38,6 +39,9 @@ public static class SearchMapping
         Terrace = request.Terrace,
         Parking = request.Parking,
         IncludeNewBuild = request.IncludeNewBuild,
+        MinScore = request.MinScore,
+        RenovationLevels = ParseAll<RenovationLevel>(request.RenovationLevels),
+        ExcludeRedFlags = request.ExcludeRedFlags.ToList(),
         Affordability = request.Affordability is { } affordability
             ? new AffordabilityCriteria
             {
@@ -73,6 +77,9 @@ public static class SearchMapping
         Terrace = filter.Terrace,
         Parking = filter.Parking,
         IncludeNewBuild = filter.IncludeNewBuild,
+        MinScore = filter.MinScore,
+        RenovationLevels = filter.RenovationLevels.Select(level => level.ToString()).ToList(),
+        ExcludeRedFlags = filter.ExcludeRedFlags,
         Affordability = filter.Affordability is { } affordability
             ? new AffordabilityFilterDto
             {

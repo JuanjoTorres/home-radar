@@ -1,5 +1,6 @@
 using HomeRadar.Domain.Configuration;
 using HomeRadar.Domain.Finance;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Outbox;
 using HomeRadar.Domain.Profiles;
@@ -44,6 +45,12 @@ public interface IHomeRadarDbContext
     DbSet<TaxRuleSet> TaxRuleSets { get; }
 
     DbSet<ListingAnalysis> ListingAnalyses { get; }
+
+    DbSet<ListingRenovationOverride> RenovationOverrides { get; }
+
+    DbSet<CadastralParcel> CadastralParcels { get; }
+
+    DbSet<ReferenceRate> ReferenceRates { get; }
 
     /// <summary>Persists tracked changes and the domain events raised since the last save, atomically.</summary>
     /// <returns>The number of state entries written.</returns>

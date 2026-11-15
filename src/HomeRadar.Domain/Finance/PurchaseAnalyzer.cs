@@ -66,6 +66,44 @@ public sealed class PurchaseAnalyzer
         return FindMaximumPrice(scenario, financing, useGuarantee, target);
     }
 
+    public Money? MaximumRenovationBudget(PurchaseScenario scenario, FinancingInputs financing, AffordabilityVerdict target)
+    {
+        if (Validate(financing) is not null)
+        {
+            return null;
+        }
+
+        var option = BaseOption(financing);
+        bool Acceptable(decimal renovation) => Matches(Evaluate(scenario with { RenovationCost = Money.Euros(renovation) }, financing, option).Verdict, target);
+        if (!Acceptable(0m))
+        {
+            return null;
+        }
+
+        var low = 0m;
+        var high = 10_000m;
+        while (high < MaximumSearchPrice && Acceptable(high))
+        {
+            low = high;
+            high *= 2m;
+        }
+
+        while (high - low > 1m)
+        {
+            var middle = Math.Floor((low + high) / 2m);
+            if (Acceptable(middle))
+            {
+                low = middle;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return Money.Euros(low);
+    }
+
     public Money? MaximumPriceWithinBudget(PurchaseScenario scenario, FinancingInputs? financing, Money budget)
     {
         var inputs = financing ?? CashBuyer(budget);
@@ -158,7 +196,7 @@ public sealed class PurchaseAnalyzer
 
     private static LoanOption BaseOption(FinancingInputs financing) => new(financing.Mortgage.MaxLoanToValue, null, 0m);
 
-    private static FinancingInputs CashBuyer(Money budget) => new(
+    public static FinancingInputs CashBuyer(Money budget) => new(
         budget,
         Money.Euros(1m),
         Money.Zero,

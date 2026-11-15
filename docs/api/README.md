@@ -33,7 +33,8 @@ POST /v1/listings/search
   "excludePossession": ["NoPossession", "Occupied"], "affordability": {"financingProfileId": "<id>"},
   "sort": "PriceAsc", "limit": 25 }
 ```
-Follow `nextCursor` for the next page. `GET /v1/listings?municipality=Inca&affordableFor=<id>` covers the simple cases;
+Add `"minScore": 50`, `"renovationLevels": ["ReadyToMoveIn", "Light"]`, `"excludeRedFlags": ["occupied", "noPossession"]`
+and `"sort": "ScoreDesc"` to see the best opportunities first. Follow `nextCursor` for the next page. `GET /v1/listings?municipality=Inca&affordableFor=<id>` covers the simple cases;
 `budget=330000` keeps listings whose price + taxes + costs fit in a total budget.
 
 ## 4. Analyse a listing
@@ -42,10 +43,23 @@ applied and its legal source, closing costs, loan, cash needed on signing day, p
 eligibility, a version financed with an ICO/IBAVI guarantee when it helps, and the maximum price for that listing. The analysis
 is stored with its inputs and configuration versions, so it can be reproduced later.
 
+`intelligence` in the same response adds the estimated renovation (level, cost range, breakdown and what to check on the
+visit), red flags, comparison with similar listings, negotiation margin, an opportunity score 0–100 and the bid: opening offer,
+recommended bid and walk-away price. Renovation is already included in the total cost and the verdict.
+
+## 4b. After the visit
+- `PUT /v1/listings/{id}/renovation-override` with the builder's figures (`items`, `totalBudget` or just `level`): from then on
+  analysis, search, score and alerts use them. `DELETE` goes back to the estimate.
+- `PUT /v1/listings/{id}/cadastral-data` with the cadastral reference and the reference value you looked up in the Sede
+  Electrónica: transfer tax is then computed on the higher of price and reference value.
+- `POST /v1/renovation/estimates` to try another level or area without changing anything, and `POST /v1/analysis/simulations`
+  with `builtSquareMetres` to see the largest renovation you can afford and the largest one that still makes sense against
+  renovated homes nearby.
+
 ## 5. Save the search as an alert
 `POST /v1/search-profiles` with the same `filter` object and `"channels": ["Telegram"]`. New listings matching it arrive on
 Telegram within one polling interval of the source (15 minutes for priority sources), with the verdict for your default
-profile. Put the `affordability` object in the filter to be alerted only about what you can buy.
+profile, the score, the estimated renovation and any red flag. Put the `affordability` object in the filter to be alerted only about what you can buy.
 
 ## 6. Follow a listing
 `POST /v1/watchlist {"listingId": "…", "notes": "visita sábado"}` — from then on every price, text, photo or status change is

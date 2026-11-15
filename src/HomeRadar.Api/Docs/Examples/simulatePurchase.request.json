@@ -1,12 +1,13 @@
 {
   "price": {
-    "amount": 245000,
+    "amount": 185000,
     "currency": "EUR"
   },
   "purchaseKind": "Resale",
   "municipality": "Inca",
+  "builtSquareMetres": 92,
   "renovationCost": {
-    "amount": 12000,
+    "amount": 35000,
     "currency": "EUR"
   },
   "financing": {

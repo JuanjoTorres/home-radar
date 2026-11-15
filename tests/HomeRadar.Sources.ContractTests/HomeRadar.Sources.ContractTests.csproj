@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\src\HomeRadar.Sources\HomeRadar.Sources.csproj" />
+    <ProjectReference Include="..\..\src\HomeRadar.Infrastructure\HomeRadar.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" />

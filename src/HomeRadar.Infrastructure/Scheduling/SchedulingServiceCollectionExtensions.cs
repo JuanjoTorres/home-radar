@@ -30,6 +30,17 @@ public static class SchedulingServiceCollectionExtensions
             quartz.AddTrigger<OutboxDispatchJob>(trigger => trigger.ForJob(outboxKey).WithIdentity("outbox:periodic", "system")
                 .StartAt(DateTimeOffset.UtcNow.AddSeconds(20))
                 .WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromSeconds(30)).RepeatForever()));
+
+            var rescoreKey = new JobKey("rescore", "system");
+            quartz.AddJob<RescoreJob>(job => job.WithIdentity(rescoreKey).StoreDurably());
+            quartz.AddTrigger<RescoreJob>(trigger => trigger.ForJob(rescoreKey).WithIdentity("rescore:daily", "system")
+                .WithCronSchedule("0 17 4 * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc)));
+
+            var euriborKey = new JobKey("euribor", "system");
+            quartz.AddJob<EuriborUpdateJob>(job => job.WithIdentity(euriborKey).StoreDurably());
+            quartz.AddTrigger<EuriborUpdateJob>(trigger => trigger.ForJob(euriborKey).WithIdentity("euribor:daily", "system")
+                .WithCronSchedule("0 43 7 * * ?", cron => cron.InTimeZone(TimeZoneInfo.Utc)));
+            quartz.AddTrigger<EuriborUpdateJob>(trigger => trigger.ForJob(euriborKey).WithIdentity("euribor:startup", "system").StartAt(DateTimeOffset.UtcNow.AddMinutes(2)));
         });
         services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
         return services;

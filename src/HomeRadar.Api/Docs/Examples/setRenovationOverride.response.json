@@ -1,0 +1,95 @@
+{
+  "level": "Full",
+  "source": "Manual",
+  "confidence": "High",
+  "min": {
+    "amount": 19100,
+    "currency": "EUR"
+  },
+  "probable": {
+    "amount": 19100,
+    "currency": "EUR"
+  },
+  "max": {
+    "amount": 19100,
+    "currency": "EUR"
+  },
+  "areaSquareMetres": 92.0,
+  "areaAssumed": false,
+  "lines": [
+    {
+      "code": "kitchen",
+      "name": "Cocina completa (presupuesto 12/11)",
+      "quantity": 1,
+      "unit": "Dwelling",
+      "min": {
+        "amount": 9800,
+        "currency": "EUR"
+      },
+      "probable": {
+        "amount": 9800,
+        "currency": "EUR"
+      },
+      "max": {
+        "amount": 9800,
+        "currency": "EUR"
+      },
+      "manual": true
+    },
+    {
+      "code": "bathroom",
+      "name": "Baño",
+      "quantity": 1,
+      "unit": "Dwelling",
+      "min": {
+        "amount": 6200,
+        "currency": "EUR"
+      },
+      "probable": {
+        "amount": 6200,
+        "currency": "EUR"
+      },
+      "max": {
+        "amount": 6200,
+        "currency": "EUR"
+      },
+      "manual": true
+    },
+    {
+      "code": "painting",
+      "name": "Pintura y alisado",
+      "quantity": 1,
+      "unit": "Dwelling",
+      "min": {
+        "amount": 3100,
+        "currency": "EUR"
+      },
+      "probable": {
+        "amount": 3100,
+        "currency": "EUR"
+      },
+      "max": {
+        "amount": 3100,
+        "currency": "EUR"
+      },
+      "manual": true
+    }
+  ],
+  "signals": [
+    "Items set manually"
+  ],
+  "visitChecklist": [
+    "Valid habitability certificate (cédula, valid 10 years)",
+    "Building evaluation report (IEE) if the building is 50 years or older, and pending levies",
+    "Energy certificate rating and year",
+    "Electrical certificate (boletín) year: older than 20 years needs a review to change power or holder",
+    "Permits for past works, especially closed terraces or new layouts",
+    "Electrical panel with main switch, 30 mA differentials, several circuits and earthed sockets",
+    "Water pressure, hot water and cisterns",
+    "Windows: thermal break and double glazing",
+    "Damp or mould on ceilings, corners and north walls",
+    "Air conditioning units, age and gas type",
+    "Water heater type and year"
+  ],
+  "notes": "Visita 14/11: instalación eléctrica renovada en 2019"
+}

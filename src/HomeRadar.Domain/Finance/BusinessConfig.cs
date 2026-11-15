@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HomeRadar.Domain.Common;
+using HomeRadar.Domain.Intelligence;
 
 namespace HomeRadar.Domain.Finance;
 
@@ -16,6 +17,18 @@ public sealed record BusinessConfig
     public AffordabilityThresholds Affordability { get; init; } = new();
 
     public ClosingCostEstimates ClosingCosts { get; init; } = new();
+
+    public RenovationConfig Renovation { get; init; } = new();
+
+    public RedFlagConfig RedFlags { get; init; } = new();
+
+    public NegotiationConfig Negotiation { get; init; } = new();
+
+    public ComparablesConfig Comparables { get; init; } = new();
+
+    public ScoringConfig Scoring { get; init; } = new();
+
+    public BiddingConfig Bidding { get; init; } = new();
 
     public static BusinessConfig Parse(string json) =>
         JsonSerializer.Deserialize<BusinessConfig>(json, FinanceJson.Options) ?? throw new DomainException("Business configuration payload is empty.");

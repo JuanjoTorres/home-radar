@@ -1,0 +1,15 @@
+{
+  "cadastre": {
+    "reference": "0763604DD7806C0002IU",
+    "builtSquareMetres": 88,
+    "yearBuilt": 1974,
+    "use": null,
+    "rustic": null,
+    "match": "Manual"
+  },
+  "referenceValue": {
+    "amount": 162400,
+    "currency": "EUR"
+  },
+  "referenceValueDate": "2026-11-14"
+}

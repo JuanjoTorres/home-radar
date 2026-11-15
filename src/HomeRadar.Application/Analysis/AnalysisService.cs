@@ -4,6 +4,7 @@ using System.Text.Json;
 using HomeRadar.Application.Ports;
 using HomeRadar.Domain.Common;
 using HomeRadar.Domain.Finance;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Profiles;
 using HomeRadar.Domain.ValueObjects;
@@ -26,9 +27,15 @@ public sealed record ListingAnalysisInput(
     Guid BusinessConfigVersionId,
     int BusinessConfigRevision,
     IReadOnlyList<TaxRuleSetReference> TaxRuleSets,
-    DateOnly On);
+    DateOnly On,
+    RenovationLevel RenovationLevel,
+    EstimateSource RenovationSource,
+    decimal RenovationCost,
+    decimal? ReferenceValue,
+    decimal EuriborPercent,
+    string EuriborMonth);
 
-public sealed record StoredListingAnalysis(ListingAnalysis Record, FinancialAnalysis Analysis, ListingAnalysisInput Input, bool Reused);
+public sealed record StoredListingAnalysis(ListingAnalysis Record, FinancialAnalysis Analysis, ListingAnalysisInput Input, bool Reused, RenovationEstimate Renovation);
 
 public sealed class AnalysisService(IHomeRadarDbContext db, FinanceConfigurationLoader loader, TimeProvider clock)
 {
@@ -66,7 +73,7 @@ public sealed class AnalysisService(IHomeRadarDbContext db, FinanceConfiguration
             return Result.Failure<StoredListingAnalysis>(profile.Error!);
         }
 
-        var stored = await AnalyzeAsync(listing, profile.Value!, cancellationToken);
+        var stored = await AnalyzeAsync(listing, profile.Value!, null, cancellationToken);
         if (stored.IsSuccess && !stored.Value!.Reused)
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -75,7 +82,25 @@ public sealed class AnalysisService(IHomeRadarDbContext db, FinanceConfiguration
         return stored;
     }
 
-    public async Task<Result<StoredListingAnalysis>> AnalyzeAsync(Listing listing, FinancingProfile profile, CancellationToken cancellationToken)
+    public async Task<RenovationEstimate> RenovationAsync(Listing listing, BusinessConfig config, CancellationToken cancellationToken)
+    {
+        var manual = await db.RenovationOverrides.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.ListingId == listing.Id, cancellationToken);
+        return new RuleBasedRenovationEstimator().Estimate(RenovationInputFor(listing, manual?.ToOverride(), Today.Year), config.Renovation);
+    }
+
+    public static RenovationInput RenovationInputFor(Listing listing, RenovationOverride? manual, int currentYear) => new(
+        listing.Title,
+        listing.Description,
+        listing.BuiltSquareMetres,
+        listing.Bathrooms,
+        listing.Rooms,
+        listing.EffectiveYearBuilt,
+        listing.IsNewBuild,
+        listing.PropertyType,
+        manual,
+        currentYear);
+
+    public async Task<Result<StoredListingAnalysis>> AnalyzeAsync(Listing listing, FinancingProfile profile, RenovationEstimate? renovation, CancellationToken cancellationToken)
     {
         if (listing.Price is not { } price)
         {
@@ -89,6 +114,7 @@ public sealed class AnalysisService(IHomeRadarDbContext db, FinanceConfiguration
         }
 
         var config = configuration.Value!;
+        renovation ??= await RenovationAsync(listing, config.Config, cancellationToken);
         var input = new ListingAnalysisInput(
             listing.Id,
             listing.ContentHash.Value,
@@ -102,7 +128,13 @@ public sealed class AnalysisService(IHomeRadarDbContext db, FinanceConfiguration
             config.Version.Id,
             config.Version.Revision,
             config.TaxRuleSets.Select(set => new TaxRuleSetReference(set.Id, set.Jurisdiction, set.ValidFrom, set.Revision)).ToList(),
-            config.On);
+            config.On,
+            renovation.Level,
+            renovation.Source,
+            renovation.Cost.Probable,
+            listing.ReferenceValueAmount,
+            config.Config.Euribor.TwelveMonthPercent,
+            config.Config.Euribor.Month);
         var inputJson = JsonSerializer.Serialize(input, FinanceJson.Options);
         var inputHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(inputJson)));
 
@@ -110,10 +142,10 @@ public sealed class AnalysisService(IHomeRadarDbContext db, FinanceConfiguration
             .FirstOrDefaultAsync(candidate => candidate.ListingId == listing.Id && candidate.FinancingProfileId == profile.Id && candidate.InputHash == inputHash, cancellationToken);
         if (existing is not null)
         {
-            return new StoredListingAnalysis(existing, JsonSerializer.Deserialize<FinancialAnalysis>(existing.ResultJson, FinanceJson.Options)!, input, Reused: true);
+            return new StoredListingAnalysis(existing, JsonSerializer.Deserialize<FinancialAnalysis>(existing.ResultJson, FinanceJson.Options)!, input, Reused: true, renovation);
         }
 
-        var scenario = new PurchaseScenario(price, input.Purchase, listing.PropertyType, HousingRegime.FreeMarket, listing.Municipality, null, Money.Zero, false, config.On);
+        var scenario = new PurchaseScenario(price, input.Purchase, listing.PropertyType, HousingRegime.FreeMarket, listing.Municipality, listing.ReferenceValue, Money.Euros(renovation.Cost.Probable), renovation.Source == EstimateSource.Rules, config.On);
         var analysis = config.Analyzer.Analyze(scenario, input.Financing);
         if (!analysis.IsSuccess)
         {
@@ -133,6 +165,6 @@ public sealed class AnalysisService(IHomeRadarDbContext db, FinanceConfiguration
             JsonSerializer.Serialize(analysis.Value, FinanceJson.Options),
             clock.GetUtcNow());
         db.ListingAnalyses.Add(record);
-        return new StoredListingAnalysis(record, analysis.Value, input, Reused: false);
+        return new StoredListingAnalysis(record, analysis.Value, input, Reused: false, renovation);
     }
 }

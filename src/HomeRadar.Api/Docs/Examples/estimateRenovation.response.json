@@ -1,0 +1,160 @@
+{
+  "level": "Medium",
+  "source": "Rules",
+  "confidence": "High",
+  "min": {
+    "amount": 39435.75,
+    "currency": "EUR"
+  },
+  "probable": {
+    "amount": 56962.75,
+    "currency": "EUR"
+  },
+  "max": {
+    "amount": 83253.25,
+    "currency": "EUR"
+  },
+  "areaSquareMetres": 85,
+  "areaAssumed": false,
+  "lines": [
+    {
+      "code": "kitchen",
+      "name": "Full kitchen",
+      "quantity": 1,
+      "unit": "Unit",
+      "min": {
+        "amount": 7000,
+        "currency": "EUR"
+      },
+      "probable": {
+        "amount": 11000,
+        "currency": "EUR"
+      },
+      "max": {
+        "amount": 18000,
+        "currency": "EUR"
+      },
+      "manual": false
+    },
+    {
+      "code": "bathroom",
+      "name": "Full bathroom",
+      "quantity": 1,
+      "unit": "Unit",
+      "min": {
+        "amount": 4000,
+        "currency": "EUR"
+      },
+      "probable": {
+        "amount": 6000,
+        "currency": "EUR"
+      },
+      "max": {
+        "amount": 9000,
+        "currency": "EUR"
+      },
+      "manual": false
+    },
+    {
+      "code": "painting",
+      "name": "Painting",
+      "quantity": 85,
+      "unit": "SquareMetre",
+      "min": {
+        "amount": 1190,
+        "currency": "EUR"
+      },
+      "probable": {
+        "amount": 2125,
+        "currency": "EUR"
+      },
+      "max": {
+        "amount": 3825,
+        "currency": "EUR"
+      },
+      "manual": false
+    },
+    {
+      "code": "electricalCertificate",
+      "name": "Electrical certificate (boletín)",
+      "quantity": 1,
+      "unit": "Dwelling",
+      "min": {
+        "amount": 100,
+        "currency": "EUR"
+      },
+      "probable": {
+        "amount": 180,
+        "currency": "EUR"
+      },
+      "max": {
+        "amount": 360,
+        "currency": "EUR"
+      },
+      "manual": false
+    },
+    {
+      "code": "otherWorks",
+      "name": "Masonry, partial installations, carpentry and other works of a medium renovation",
+      "quantity": 85,
+      "unit": "SquareMetre",
+      "min": {
+        "amount": 25960,
+        "currency": "EUR"
+      },
+      "probable": {
+        "amount": 35945,
+        "currency": "EUR"
+      },
+      "max": {
+        "amount": 49565,
+        "currency": "EUR"
+      },
+      "manual": false
+    },
+    {
+      "code": "permitsAndTax",
+      "name": "Works tax (ICIO) and permit fees",
+      "quantity": 1,
+      "unit": "Dwelling",
+      "min": {
+        "amount": 1185.75,
+        "currency": "EUR"
+      },
+      "probable": {
+        "amount": 1712.75,
+        "currency": "EUR"
+      },
+      "max": {
+        "amount": 2503.25,
+        "currency": "EUR"
+      },
+      "manual": false
+    }
+  ],
+  "signals": [
+    "Description mentions \"para actualizar\" (Medium)",
+    "Description mentions \"cocina original\" (Medium)",
+    "Built in 1992: 1980-2002: asbestos possible until the 2002 ban and wiring older than REBT 2002"
+  ],
+  "visitChecklist": [
+    "Valid habitability certificate (cédula, valid 10 years)",
+    "Building evaluation report (IEE) if the building is 50 years or older, and pending levies",
+    "Energy certificate rating and year",
+    "Electrical certificate (boletín) year: older than 20 years needs a review to change power or holder",
+    "Permits for past works, especially closed terraces or new layouts",
+    "Electrical panel with main switch, 30 mA differentials, several circuits and earthed sockets",
+    "Water pressure, hot water and cisterns",
+    "Windows: thermal break and double glazing",
+    "Damp or mould on ceilings, corners and north walls",
+    "Air conditioning units, age and gas type",
+    "Water heater type and year",
+    "Pipe material under the sink and at the meter: lead or galvanised iron means renewing the plumbing (RD 3/2023)",
+    "Fibre-cement downpipes or tanks: possible asbestos before 2002",
+    "Kitchen units, worktop and water and gas connections",
+    "Bathrooms: tray or tub, ventilation, cracks and black joints",
+    "Hollow-sounding tiles; original hydraulic tiles worth keeping",
+    "Gotelé on walls: removing it raises painting cost"
+  ],
+  "notes": null
+}

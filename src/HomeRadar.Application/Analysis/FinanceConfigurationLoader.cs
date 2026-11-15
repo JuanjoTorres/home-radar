@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HomeRadar.Application.Analysis;
 
-public sealed record FinanceConfiguration(DateOnly On, BusinessConfigVersion Version, IReadOnlyList<TaxRuleSet> TaxRuleSets, PurchaseAnalyzer Analyzer);
+public sealed record FinanceConfiguration(DateOnly On, BusinessConfigVersion Version, IReadOnlyList<TaxRuleSet> TaxRuleSets, PurchaseAnalyzer Analyzer, BusinessConfig Config, ReferenceRate? Euribor);
 
 public sealed class FinanceConfigurationLoader(IHomeRadarDbContext db)
 {
@@ -42,7 +42,22 @@ public sealed class FinanceConfigurationLoader(IHomeRadarDbContext db)
             return AnalysisErrors.NoTaxRules(version.Config.DefaultJurisdiction, on);
         }
 
-        var configuration = new FinanceConfiguration(on, version, sets, new PurchaseAnalyzer(version.Config, sets.Select(set => set.Document).ToList()));
+        var currentMonth = new DateOnly(on.Year, on.Month, 1);
+        var euribor = await db.ReferenceRates.AsNoTracking()
+            .Where(rate => rate.Code == ReferenceRate.EuriborTwelveMonths && rate.Month < currentMonth)
+            .OrderByDescending(rate => rate.Month)
+            .FirstOrDefaultAsync(cancellationToken);
+        var config = version.Config;
+        if (euribor is not null && string.CompareOrdinal(euribor.MonthLabel, config.Euribor.Month) > 0)
+        {
+            config = config with { Euribor = new EuriborReference { TwelveMonthPercent = euribor.Percent, Month = euribor.MonthLabel, SourceUrl = euribor.Source } };
+        }
+        else
+        {
+            euribor = null;
+        }
+
+        var configuration = new FinanceConfiguration(on, version, sets, new PurchaseAnalyzer(config, sets.Select(set => set.Document).ToList()), config, euribor);
         _cache[on] = configuration;
         return configuration;
     }

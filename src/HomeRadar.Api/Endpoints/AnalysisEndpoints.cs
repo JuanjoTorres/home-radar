@@ -1,6 +1,7 @@
 using HomeRadar.Api.Contracts;
 using HomeRadar.Api.Infrastructure;
 using HomeRadar.Application.Analysis;
+using HomeRadar.Application.Intelligence;
 using HomeRadar.Application.Ports;
 using HomeRadar.Domain.Common;
 using HomeRadar.Domain.Finance;
@@ -50,15 +51,20 @@ public static class AnalysisEndpoints
         return group;
     }
 
-    private static async Task<Results<Ok<ListingAnalysisDto>, ProblemHttpResult>> GetListingAnalysisAsync(Guid listingId, [FromQuery] Guid? financingProfileId, AnalysisService analysis, IHomeRadarDbContext db, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<ListingAnalysisDto>, ProblemHttpResult>> GetListingAnalysisAsync(Guid listingId, [FromQuery] Guid? financingProfileId, ListingInsightService insights, IHomeRadarDbContext db, CancellationToken cancellationToken)
     {
-        var result = await analysis.AnalyzeListingAsync(listingId, financingProfileId, cancellationToken);
+        var result = await insights.GetAsync(listingId, financingProfileId, cancellationToken);
         if (!result.IsSuccess)
         {
             return Problems.From(result.Error!);
         }
 
-        var stored = result.Value!;
+        var insight = result.Value!;
+        if (insight.Financial is not { } stored)
+        {
+            return Problems.From(insight.FinancialUnavailable ?? AnalysisErrors.NoDefaultProfile());
+        }
+
         var validFrom = await db.BusinessConfigVersions.AsNoTracking().Where(version => version.Id == stored.Input.BusinessConfigVersionId).Select(version => version.ValidFrom).SingleAsync(cancellationToken);
         return TypedResults.Ok(new ListingAnalysisDto
         {
@@ -69,10 +75,11 @@ public static class AnalysisEndpoints
             Reused = stored.Reused,
             Configuration = AnalysisConfigurationDto.From(stored.Input, validFrom),
             Result = FinancialAnalysisDto.From(stored.Analysis),
+            Intelligence = ListingIntelligenceDto.From(insight),
         });
     }
 
-    private static async Task<Results<Ok<SimulationResultDto>, ValidationProblem, ProblemHttpResult>> SimulateAsync(SimulationRequestDto request, AnalysisService analysis, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<SimulationResultDto>, ValidationProblem, ProblemHttpResult>> SimulateAsync(SimulationRequestDto request, AnalysisService analysis, ComparablesService comparables, TimeProvider clock, CancellationToken cancellationToken)
     {
         var errors = ValidateSimulation(request);
         if (errors.Count > 0)
@@ -94,7 +101,7 @@ public static class AnalysisEndpoints
 
         var config = configuration.Value!;
         var analyzer = request.EuriborPercent is { } euribor
-            ? new PurchaseAnalyzer(config.Version.Config with { Euribor = config.Version.Config.Euribor with { TwelveMonthPercent = euribor, Month = "override", SourceUrl = null } }, config.TaxRuleSets.Select(set => set.Document).ToList())
+            ? new PurchaseAnalyzer(config.Config with { Euribor = config.Config.Euribor with { TwelveMonthPercent = euribor, Month = "override", SourceUrl = null } }, config.TaxRuleSets.Select(set => set.Document).ToList())
             : config.Analyzer;
         var scenario = new PurchaseScenario(
             Money.Euros(request.Price.Amount),
@@ -113,12 +120,55 @@ public static class AnalysisEndpoints
             return Problems.From(result.Error!);
         }
 
+        var margins = await MarginsAsync(request, scenario, financing.Value!, analyzer, result.Value!.Base, config.Config, comparables, clock, cancellationToken);
         return TypedResults.Ok(new SimulationResultDto
         {
             Configuration = AnalysisConfigurationDto.From(config),
-            EuriborPercent = request.EuriborPercent ?? config.Version.Config.Euribor.TwelveMonthPercent,
+            EuriborPercent = request.EuriborPercent ?? config.Config.Euribor.TwelveMonthPercent,
             Result = FinancialAnalysisDto.From(result.Value!),
+            Margins = margins,
         });
+    }
+
+    private static async Task<MarginsDto> MarginsAsync(
+        SimulationRequestDto request,
+        PurchaseScenario scenario,
+        FinancingInputs financing,
+        PurchaseAnalyzer analyzer,
+        PurchaseAnalysis analysis,
+        BusinessConfig config,
+        ComparablesService comparables,
+        TimeProvider clock,
+        CancellationToken cancellationToken)
+    {
+        var maximumRenovation = analyzer.MaximumRenovationBudget(scenario with { RenovationCost = Money.Zero }, financing, AffordabilityVerdict.Affordable);
+        if (request.BuiltSquareMetres is not { } area)
+        {
+            return new MarginsDto { MaximumAffordableRenovation = MoneyDto.From(maximumRenovation) };
+        }
+
+        var market = await comparables.SnapshotAsync(new ComparableCriteria(null, scenario.PropertyType, area, null, request.Municipality), config.Comparables, clock.GetUtcNow(), cancellationToken);
+        if (market?.RenovatedMedianPricePerSquareMetre is not { } renovatedRate)
+        {
+            return new MarginsDto
+            {
+                MaximumAffordableRenovation = MoneyDto.From(maximumRenovation),
+                ComparablesNote = market is null ? "Not enough comparable listings" : $"{market.RenovatedCount} renovated comparables: not enough",
+            };
+        }
+
+        var renovatedValue = Money.Euros(renovatedRate * area);
+        var withoutRenovation = analyzer.Evaluate(scenario with { RenovationCost = Money.Zero }, financing, analysis.LoanOption).TotalAcquisitionCost;
+        var contingency = 1m + (config.Affordability.RenovationContingencyPercent / 100m);
+        var sensible = Math.Max(0m, Math.Floor((renovatedValue.Amount - withoutRenovation.Amount) / contingency));
+        return new MarginsDto
+        {
+            MaximumAffordableRenovation = MoneyDto.From(maximumRenovation),
+            RenovatedMarketValue = new MoneyDto(renovatedValue.Amount),
+            MaximumSensibleRenovation = new MoneyDto(sensible),
+            TotalCostVersusRenovatedValuePercent = Math.Round(((analysis.TotalAcquisitionCost.Amount / renovatedValue.Amount) - 1m) * 100m, 1, MidpointRounding.ToEven),
+            ComparablesNote = $"{market.RenovatedCount} renovated comparables ({market.Scope})",
+        };
     }
 
     private static async Task<Results<Ok<MaximumPriceResultDto>, ValidationProblem, ProblemHttpResult>> MaximumPriceAsync(MaximumPriceRequestDto request, AnalysisService analysis, CancellationToken cancellationToken)

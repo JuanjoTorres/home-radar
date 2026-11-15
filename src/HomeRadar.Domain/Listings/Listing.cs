@@ -1,4 +1,5 @@
 using HomeRadar.Domain.Common;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.ValueObjects;
 using NetTopologySuite.Geometries;
 
@@ -9,6 +10,7 @@ public sealed class Listing : Entity
     private readonly List<ListingPhoto> _photos = [];
     private Dictionary<string, string> _features = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _enrichments = new(StringComparer.Ordinal);
+    private List<string> _redFlagCodes = [];
 
     private Listing()
     {
@@ -111,6 +113,42 @@ public sealed class Listing : Entity
 
     public DateTimeOffset? LastPriceChangeAt { get; private set; }
 
+    public string? CadastralParcelReference { get; private set; }
+
+    public int? CadastralYearBuilt { get; private set; }
+
+    public decimal? CadastralBuiltSquareMetres { get; private set; }
+
+    public string? CadastralUse { get; private set; }
+
+    public bool? CadastralRustic { get; private set; }
+
+    public CadastralMatchQuality CadastralMatch { get; private set; }
+
+    public decimal? ReferenceValueAmount { get; private set; }
+
+    public DateOnly? ReferenceValueDate { get; private set; }
+
+    public RenovationLevel? RenovationLevel { get; private set; }
+
+    public decimal? RenovationProbableCost { get; private set; }
+
+    public bool RenovationManual { get; private set; }
+
+    public int? Score { get; private set; }
+
+    public IReadOnlyList<string> RedFlagCodes => _redFlagCodes;
+
+    public DateTimeOffset? IntelligenceUpdatedAt { get; private set; }
+
+    public int? EffectiveYearBuilt => CadastralYearBuilt ?? YearBuilt;
+
+    public Money? ReferenceValue => ReferenceValueAmount is { } amount ? new Money(amount) : null;
+
+    public CadastralFacts? Cadastre => CadastralMatch == CadastralMatchQuality.None
+        ? null
+        : new CadastralFacts(CadastralReference?.Value ?? CadastralParcelReference, CadastralBuiltSquareMetres, CadastralYearBuilt, CadastralUse, CadastralRustic, CadastralMatch);
+
     public decimal? PricePerSquareMetre =>
         Price is { } price && BuiltArea is { SquareMetres: > 0 } area ? area.PriceFor(price).EurosPerSquareMetre : null;
 
@@ -184,6 +222,44 @@ public sealed class Listing : Entity
         {
             _enrichments[fact.Key] = fact.Value;
         }
+    }
+
+    public void SetCadastralFacts(CadastralFacts facts)
+    {
+        CadastralMatch = facts.Match;
+        CadastralParcelReference = facts.Reference is { Length: >= 14 } reference ? reference[..14] : CadastralParcelReference;
+        if (facts.Match is CadastralMatchQuality.Unit or CadastralMatchQuality.Manual && ValueObjects.CadastralReference.TryParse(facts.Reference, out var unit))
+        {
+            CadastralReference = unit;
+        }
+
+        CadastralYearBuilt = facts.YearBuilt;
+        CadastralBuiltSquareMetres = facts.BuiltSquareMetres;
+        CadastralUse = facts.Use;
+        CadastralRustic = facts.IsRustic;
+    }
+
+    public void SetReferenceValue(Money? value, DateOnly? date)
+    {
+        ReferenceValueAmount = value?.Amount;
+        ReferenceValueDate = value is null ? null : date;
+    }
+
+    public bool ApplyIntelligence(RenovationLevel renovationLevel, decimal renovationProbableCost, bool renovationManual, int score, IEnumerable<string> redFlagCodes, DateTimeOffset now)
+    {
+        var codes = redFlagCodes.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        if (RenovationLevel == renovationLevel && RenovationProbableCost == renovationProbableCost && RenovationManual == renovationManual && Score == score && _redFlagCodes.SequenceEqual(codes, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        RenovationLevel = renovationLevel;
+        RenovationProbableCost = renovationProbableCost;
+        RenovationManual = renovationManual;
+        Score = score;
+        _redFlagCodes = codes;
+        IntelligenceUpdatedAt = now;
+        return true;
     }
 
     public void SetPhotoHash(Uri url, ulong hash) => _photos.Find(photo => photo.Url == url)?.SetPerceptualHash(hash);

@@ -1,4 +1,5 @@
 using HomeRadar.Domain.Finance;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.ValueObjects;
 
@@ -65,6 +66,12 @@ public sealed record ListingFilter
     public bool IncludeNewBuild { get; init; } = true;
 
     public AffordabilityCriteria? Affordability { get; init; }
+
+    public int? MinScore { get; init; }
+
+    public IReadOnlyList<RenovationLevel> RenovationLevels { get; init; } = [];
+
+    public IReadOnlyList<string> ExcludeRedFlags { get; init; } = [];
 }
 
 public sealed record AffordabilityCriteria

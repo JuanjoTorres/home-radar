@@ -1,6 +1,8 @@
 using HomeRadar.Domain.Finance;
+using HomeRadar.Domain.Intelligence;
 using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Profiles;
+using HomeRadar.Infrastructure.Persistence.Conversions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -39,5 +41,54 @@ internal sealed class ListingAnalysisConfiguration : IEntityTypeConfiguration<Li
         builder.HasOne<Listing>().WithMany().HasForeignKey(analysis => analysis.ListingId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<FinancingProfile>().WithMany().HasForeignKey(analysis => analysis.FinancingProfileId).OnDelete(DeleteBehavior.Cascade);
         builder.Ignore(analysis => analysis.DomainEvents);
+    }
+}
+
+internal sealed class ListingRenovationOverrideConfiguration : IEntityTypeConfiguration<ListingRenovationOverride>
+{
+    public void Configure(EntityTypeBuilder<ListingRenovationOverride> builder)
+    {
+        builder.ToTable("renovation_overrides");
+        builder.HasKey(item => item.Id);
+        builder.HasIndex(item => item.ListingId).IsUnique();
+        builder.Property(item => item.Level).HasConversion<string>().HasMaxLength(16);
+        builder.Property(item => item.TotalBudget).HasPrecision(14, 2);
+        builder.Property(item => item.Notes).HasMaxLength(2000);
+        builder.Property(item => item.Items).HasField("_items").UsePropertyAccessMode(PropertyAccessMode.Field).HasColumnType("jsonb")
+            .HasConversion(ValueConverters.Json<IReadOnlyList<RenovationOverrideItem>>(), ValueConverters.JsonComparer<IReadOnlyList<RenovationOverrideItem>>());
+        builder.Property(item => item.Version).IsRowVersion();
+        builder.HasOne<Listing>().WithMany().HasForeignKey(item => item.ListingId).OnDelete(DeleteBehavior.Cascade);
+        builder.Ignore(item => item.DomainEvents);
+    }
+}
+
+internal sealed class CadastralParcelConfiguration : IEntityTypeConfiguration<CadastralParcel>
+{
+    public void Configure(EntityTypeBuilder<CadastralParcel> builder)
+    {
+        builder.ToTable("cadastral_parcels");
+        builder.HasKey(parcel => parcel.Id);
+        builder.HasIndex(parcel => parcel.ParcelReference).IsUnique();
+        builder.Property(parcel => parcel.ParcelReference).HasMaxLength(14);
+        builder.Property(parcel => parcel.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(parcel => parcel.Address).HasMaxLength(300);
+        builder.Property(parcel => parcel.Units).HasField("_units").UsePropertyAccessMode(PropertyAccessMode.Field).HasColumnType("jsonb")
+            .HasConversion(ValueConverters.Json<IReadOnlyList<CadastralUnit>>(), ValueConverters.JsonComparer<IReadOnlyList<CadastralUnit>>());
+        builder.Ignore(parcel => parcel.DomainEvents);
+    }
+}
+
+internal sealed class ReferenceRateConfiguration : IEntityTypeConfiguration<ReferenceRate>
+{
+    public void Configure(EntityTypeBuilder<ReferenceRate> builder)
+    {
+        builder.ToTable("reference_rates");
+        builder.HasKey(rate => rate.Id);
+        builder.HasIndex(rate => new { rate.Code, rate.Month }).IsUnique();
+        builder.Property(rate => rate.Code).HasMaxLength(32);
+        builder.Property(rate => rate.Percent).HasPrecision(8, 4);
+        builder.Property(rate => rate.Source).HasMaxLength(300);
+        builder.Ignore(rate => rate.MonthLabel);
+        builder.Ignore(rate => rate.DomainEvents);
     }
 }

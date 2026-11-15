@@ -1,0 +1,29 @@
+{
+  "items": [
+    {
+      "code": "kitchen",
+      "description": "Cocina completa (presupuesto 12/11)",
+      "amount": {
+        "amount": 9800,
+        "currency": "EUR"
+      }
+    },
+    {
+      "code": "bathroom",
+      "description": "Baño",
+      "amount": {
+        "amount": 6200,
+        "currency": "EUR"
+      }
+    },
+    {
+      "code": "painting",
+      "description": "Pintura y alisado",
+      "amount": {
+        "amount": 3100,
+        "currency": "EUR"
+      }
+    }
+  ],
+  "notes": "Visita 14/11: instalación eléctrica renovada en 2019"
+}

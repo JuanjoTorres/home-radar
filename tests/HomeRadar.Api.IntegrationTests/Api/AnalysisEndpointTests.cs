@@ -87,7 +87,9 @@ public sealed class AnalysisEndpointTests(DatabaseFixture fixture)
         simulated.EuriborPercent.ShouldBe(2.5m);
         simulated.Result.Base.Taxes.Lines.ShouldHaveSingleItem().Quota.Amount.ShouldBe(13_193.95m);
         simulated.Result.Base.Payments.Select(schedule => schedule.Scenario).ShouldBe(["base", "plus1", "plus2"]);
-        simulated.Result.Base.Costs.ShouldContain(cost => cost.Category == "RenovationContingency" && cost.Amount.Amount == 1_500m);
+        simulated.Result.Base.Costs.ShouldContain(cost => cost.Category == "RenovationContingency" && cost.Amount.Amount == 2_250m);
+        (simulated.Margins.MaximumAffordableRenovation is null).ShouldBe(simulated.Result.Base.Verdict != "Affordable");
+        simulated.Margins.RenovatedMarketValue.ShouldBeNull();
 
         var maximum = await client.PostAsJsonAsync(new Uri("/v1/affordability/maximum-price", UriKind.Relative), new { municipality = "Palma" }, TestContext.Current.CancellationToken);
         maximum.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -130,7 +132,9 @@ public sealed class AnalysisEndpointTests(DatabaseFixture fixture)
         var rules = await client.GetFromJsonAsync<List<TaxRuleSetDto>>(new Uri("/v1/tax-rules?jurisdiction=ES-IB&on=2026-11-15", UriKind.Relative), Json, TestContext.Current.CancellationToken);
 
         config!.Euribor.TwelveMonthPercent.ShouldBe(3.239m);
-        versions.ShouldHaveSingleItem().Id.ShouldBe(config.Id);
+        versions!.Count.ShouldBe(2);
+        versions[0].Id.ShouldBe(config.Id);
+        config.Affordability.RenovationContingencyPercent.ShouldBe(15m);
         rules!.Select(set => set.Jurisdiction).ShouldBe(["ES", "ES-IB"]);
         rules![1].Document.GetProperty("rules").GetArrayLength().ShouldBeGreaterThan(10);
     }
@@ -154,7 +158,7 @@ public sealed class AnalysisEndpointTests(DatabaseFixture fixture)
                 Rooms = 3,
                 PropertyType = PropertyType.Flat,
                 Municipality = "Palma",
-                Features = new Dictionary<string, string>(StringComparer.Ordinal) { ["_fingerprint"] = $"x{price}" },
+                Features = new Dictionary<string, string>(StringComparer.Ordinal) { ["_fingerprint"] = $"x{price}", [FeatureKeys.YearBuilt] = "2015" },
             }, T0);
             db.Listings.Add(listing);
             listings[price] = listing.Id;
