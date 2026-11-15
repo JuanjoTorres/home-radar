@@ -2,7 +2,7 @@
   "url": "https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCoordenadas.svc/json/Consulta_RCCOOR?CoorX=2.600000&CoorY=39.400000&SRS=EPSG:4326",
   "finalUrl": "https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCoordenadas.svc/json/Consulta_RCCOOR?CoorX=2.600000&CoorY=39.400000&SRS=EPSG:4326",
   "status": 200,
-  "recordedAt": "2026-11-15T22:42:54.688996+00:00",
+  "recordedAt": "2026-11-15T22:48:40.221741+00:00",
   "contentType": "application/json; charset=utf-8",
   "etag": null,
   "lastModified": null,
