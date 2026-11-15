@@ -70,6 +70,17 @@ public sealed class CadastreAndEuriborTests
     }
 
     [Fact]
+    public void Street_points_fall_back_to_the_nearest_parcel_within_a_few_metres()
+    {
+        const string nearby = """{"Consulta_RCCOOR_DistanciaResult":{"control":{"cucoor":1},"coordenadas_distancias":{"coordd":[{"geo":{"xcen":"2.65","ycen":"39.57","srs":"EPSG:4326"},"lpcd":[{"pc":{"pc1":"0763605","pc2":"DD7806C"},"ldt":"CL EXEMPLE 12","dis":"9.40"},{"pc":{"pc1":"0763604","pc2":"DD7806C"},"ldt":"CL EXEMPLE 10","dis":"3.18"}]}]}}}""";
+        const string empty = """{"Consulta_RCCOOR_DistanciaResult":{"control":{"cucoor":1},"coordenadas_distancias":{"coordd":[{"geo":{"xcen":"2.60","ycen":"39.40","srs":"EPSG:4326"}}]}}}""";
+
+        CatastroOvcClient.ParseNearest(nearby, 15d).ShouldBe("0763604DD7806C");
+        CatastroOvcClient.ParseNearest(nearby, 2d).ShouldBeNull();
+        CatastroOvcClient.ParseNearest(empty, 15d).ShouldBeNull();
+    }
+
+    [Fact]
     public void Units_are_matched_by_reference_area_or_fall_back_to_the_parcel()
     {
         var parcel = new CadastralParcel("0763604DD7806C", CadastralLookupStatus.Found, CatastroOvcClient.ParseParcel("0763604DD7806C", Block).Units, null, null, DateTimeOffset.UnixEpoch);

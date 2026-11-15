@@ -28,7 +28,7 @@ sources:
 - key: catastro
   pages:
   - name: rccoor-palma-centre
-    url: https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCoordenadas.svc/json/Consulta_RCCOOR?CoorX=2.650400&CoorY=39.571500&SRS=EPSG:4326
+    url: https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCoordenadas.svc/json/Consulta_RCCOOR_Distancia?CoorX=2.650400&CoorY=39.571500&SRS=EPSG:4326
     followTemplate:
       name: dnprc-palma-centre
       pattern: '"pc1":"([0-9A-Z]{7})","pc2":"([0-9A-Z]{7})"'

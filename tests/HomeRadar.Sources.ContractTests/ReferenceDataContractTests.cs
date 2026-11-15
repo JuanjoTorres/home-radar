@@ -19,7 +19,7 @@ public sealed class ReferenceDataContractTests
         var point = Recorded("catastro", "rccoor-palma-centre.json");
         Assert.SkipWhen(point is null, "Catastro fixtures not recorded yet: run the record-fixtures workflow with source=catastro");
 
-        var reference = CatastroOvcClient.ParseCoordinates(point!).ShouldNotBeNull();
+        var reference = CatastroOvcClient.ParseNearest(point!, 50d).ShouldNotBeNull();
         reference.Length.ShouldBe(14);
         var parcel = Recorded("catastro", "dnprc-palma-centre.json").ShouldNotBeNull();
         var result = CatastroOvcClient.ParseParcel(reference, parcel);

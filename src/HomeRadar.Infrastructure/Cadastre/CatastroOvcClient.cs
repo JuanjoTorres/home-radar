@@ -12,6 +12,7 @@ public sealed partial class CatastroOvcClient(IHttpClientFactory factory) : ICad
     public const string Host = "https://ovc.catastro.meh.es";
     public const string NotFoundCode = "5";
     public const string NoParcelAtPointCode = "16";
+    public const double MaximumStreetDistanceMetres = 15d;
 
     public async Task<CadastreParcelResult> GetParcelAsync(string reference, CancellationToken cancellationToken)
     {
@@ -29,8 +30,39 @@ public sealed partial class CatastroOvcClient(IHttpClientFactory factory) : ICad
         var y = latitude.ToString("0.000000", CultureInfo.InvariantCulture);
         var uri = new Uri($"{Host}/OVCServWeb/OVCWcfCallejero/COVCCoordenadas.svc/json/Consulta_RCCOOR?CoorX={x}&CoorY={y}&SRS=EPSG:4326");
         using var client = factory.CreateClient(SourceHttpServiceCollectionExtensions.ClientName);
-        var json = await client.GetStringAsync(uri, cancellationToken);
-        return ParseCoordinates(json);
+        if (ParseCoordinates(await client.GetStringAsync(uri, cancellationToken)) is { } reference)
+        {
+            return reference;
+        }
+
+        var nearby = new Uri($"{Host}/OVCServWeb/OVCWcfCallejero/COVCCoordenadas.svc/json/Consulta_RCCOOR_Distancia?CoorX={x}&CoorY={y}&SRS=EPSG:4326");
+        return ParseNearest(await client.GetStringAsync(nearby, cancellationToken), MaximumStreetDistanceMetres);
+    }
+
+    public static string? ParseNearest(string json, double maximumDistanceMetres)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = Property(document.RootElement, "Consulta_RCCOOR_DistanciaResult") ?? document.RootElement;
+        var errors = Errors(root).ToList();
+        if (errors.Contains(NoParcelAtPointCode))
+        {
+            return null;
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException($"Catastro coordinates error {errors[0]}");
+        }
+
+        return Items(Property(Property(root, "coordenadas_distancias"), "coordd"))
+            .SelectMany(point => Items(Property(point, "lpcd")))
+            .Select(candidate => (
+                Parcel: Property(candidate, "pc"),
+                Distance: double.TryParse(String(candidate, "dis"), NumberStyles.Float, CultureInfo.InvariantCulture, out var metres) ? metres : double.MaxValue))
+            .Where(candidate => candidate.Distance <= maximumDistanceMetres && String(candidate.Parcel, "pc1") is not null && String(candidate.Parcel, "pc2") is not null)
+            .OrderBy(candidate => candidate.Distance)
+            .Select(candidate => String(candidate.Parcel, "pc1") + String(candidate.Parcel, "pc2"))
+            .FirstOrDefault();
     }
 
     public static CadastreParcelResult ParseParcel(string parcelReference, string json)
