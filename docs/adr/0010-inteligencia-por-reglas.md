@@ -33,5 +33,5 @@ con sus fuentes y lo que no se pudo verificar.
 - Un anuncio sin descripción ni año aparece con reforma ligera estimada: sus análisis pueden pasar de "asequible" a "límite"
   o "no asequible" respecto a la fase 2. Es intencionado; se corrige con `setRenovationOverride` tras la visita.
 - Los comparables mejoran con el tiempo: al principio habrá pocos y muchos anuncios no tendrán `market`.
-- Las fixtures reales del Catastro y del Banco de España se graban con el flujo `record-fixtures`; mientras no existan, sus
-  tests de contrato se omiten (los parsers están probados con respuestas de ejemplo de la documentación).
+- Las respuestas reales del Catastro y del Banco de España se graban con el flujo `record-fixtures` y los tests de contrato
+  las validan; si la OVC cambia de formato, esos tests lo detectan al volver a grabar.
