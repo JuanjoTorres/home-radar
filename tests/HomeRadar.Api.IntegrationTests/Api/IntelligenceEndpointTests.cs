@@ -7,7 +7,6 @@ using HomeRadar.Domain.Listings;
 using HomeRadar.Domain.Sources;
 using HomeRadar.Domain.ValueObjects;
 using HomeRadar.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
 
 namespace HomeRadar.Api.IntegrationTests.Api;
 
