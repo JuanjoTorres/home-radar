@@ -8318,7 +8318,7 @@
             "description": "Notes of the manual override."
           }
         },
-        "description": "Renovation estimate: cost = quantity × unit cost for every item of the level (or level €/m² × built area when the level has no items), from the configurable Mallorca cost table."
+        "description": "Renovation estimate: total = the higher of level €/m² × built area and the sum of the level's items, plus permits and ICIO; items are an indicative breakdown and the remainder is reported as otherWorks. Costs come from the configurable Mallorca table (VAT included)."
       },
       "RenovationEstimateRequestDto": {
         "type": "object",
